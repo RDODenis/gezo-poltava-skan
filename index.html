@@ -163,7 +163,33 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
 .hintItem:hover { background: #f5f5f5; }
 .meterTypeBox { position: relative; margin-top: 5px; }
 .meterTypeHints { position: absolute; left: 0; right: 0; top: 100%; margin-top: 2px; background: #fff; border: 1px solid #d9d9d9; border-radius: 8px; max-height: 250px; overflow-y: auto; z-index: 3000; box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+
 .meterTypeItem { padding: 12px; font-size: 16px; cursor: pointer; border-bottom: 1px solid #eee; background: #fff; }
+
+/* МОЇ ПЛОМБИ / МОЇ МАГНІТИ */
+.inventoryButtons { display: flex; gap: 10px; margin-top: 15px; }
+.inventoryBtn { margin-top: 0; min-height: 48px; font-size: 16px; }
+.inventoryBtn.plomb { background: #546e7a; }
+.inventoryBtn.magnet { background: #8e24aa; }
+.inventoryField { position: relative; }
+.plombHints { position: absolute; left: 0; right: 0; top: 100%; margin-top: 2px; background: #fff; border: 1px solid #d9d9d9; border-radius: 8px; max-height: 220px; overflow-y: auto; z-index: 4000; box-shadow: 0 4px 12px rgba(0,0,0,.16); }
+.plombHintItem { padding: 10px 12px; font-size: 15px; cursor: pointer; border-bottom: 1px solid #eee; background: #fff; }
+.plombHintItem:hover { background: #f5f5f5; }
+.plombHintItem.used { background: #fff3e0; color: #e65100; }
+.inventoryModal { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 10003; display: flex; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; }
+.inventoryCard { width: 100%; max-width: 420px; max-height: 90vh; overflow: auto; background: #fff; border-radius: 16px; padding: 20px; box-sizing: border-box; }
+.inventoryHeader { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
+.inventoryHeader h3 { margin: 0; font-size: 21px; color: #333; }
+.inventoryClose { width: auto; min-height: auto; margin: 0; padding: 6px 12px; background: #eee; color: #333; font-size: 16px; }
+.inventoryRange { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.inventoryRange label { display: block; color: #555; font-size: 13px; margin-bottom: 4px; }
+.inventoryActions { display: flex; gap: 10px; }
+.inventoryActions button { font-size: 16px; }
+.inventoryAdd { background: #4caf50; }
+.inventoryClear { background: #d32f2f; }
+.inventoryList { margin-top: 12px; padding: 10px; min-height: 45px; max-height: 180px; overflow-y: auto; background: #f7f7f7; border-radius: 8px; word-break: break-word; line-height: 1.55; font-size: 14px; }
+.inventoryCount { color: #1565c0; font-weight: bold; }
+
 
 /* ПРОФЕСІЙНИЙ СКАНЕР (ZXing) */
 #scanner-wrapper { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 10000; align-items: center; justify-content: center; flex-direction: column; }
@@ -360,6 +386,11 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
     <div style="display: flex; gap: 10px; margin-top: 15px;">
       <button class="actionBtn" onclick="search()" id="btnSearch">Знайти</button>
       <button class="actionBtn" onclick="offlineMode()" style="background:#607d8b;">Офлайн</button>
+    </div>
+
+    <div class="inventoryButtons">
+      <button class="inventoryBtn plomb" onclick="openInventoryModal('plomb')">🧰 Мої пломби (<span id="myPlombsCount">0</span>)</button>
+      <button class="inventoryBtn magnet" onclick="openInventoryModal('magnet')">🧲 Мої магніти (<span id="myMagnetsCount">0</span>)</button>
     </div>
   </div>
 
@@ -791,6 +822,35 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
     <button class="btn-back actionBtn" onclick="backToFasad2()">🔙 Назад</button>
   </div>
 
+</div>
+
+<!-- МОДАЛЬНЕ ВІКНО: МОЇ ПЛОМБИ / МОЇ МАГНІТИ -->
+<div id="inventoryModal" class="inventoryModal hidden">
+  <div class="inventoryCard">
+    <div class="inventoryHeader">
+      <h3 id="inventoryModalTitle">🧰 Мої пломби</h3>
+      <button class="inventoryClose" onclick="closeInventoryModal()">✕</button>
+    </div>
+
+    <div class="inventoryRange">
+      <div>
+        <label for="inventoryStart">Від</label>
+        <input id="inventoryStart" autocomplete="off" placeholder="С00000001">
+      </div>
+      <div>
+        <label for="inventoryEnd">До</label>
+        <input id="inventoryEnd" autocomplete="off" placeholder="С00000020">
+      </div>
+    </div>
+
+    <div class="inventoryActions">
+      <button class="inventoryAdd" onclick="generateInventoryRange()">＋ Додати діапазон</button>
+      <button class="inventoryClear" onclick="clearInventory()">Очистити</button>
+    </div>
+
+    <div style="margin-top:12px;">У списку: <span id="inventoryModalCount" class="inventoryCount">0</span></div>
+    <div id="inventoryList" class="inventoryList">Список порожній.</div>
+  </div>
 </div>
 
 <!-- ФОРМА Виходу -->
@@ -1329,6 +1389,192 @@ function cleanPlomb(text) {
 }
 
 /* =========================================================
+МОЇ ПЛОМБИ / МОЇ МАГНІТИ
+========================================================= */
+let currentInventoryType = "plomb";
+
+const inventoryPlombFieldIds = [
+  "removedLichil", "installedLichil", "removedFasad1", "installedFasad1", "removedFasad2", "installedFasad2", "removedVkp", "installedVkp", "removedOptop", "installedOptop",
+  "replaceRemovedLichil", "replaceRemovedFasad1", "replaceRemovedFasad2", "replaceRemovedVkp", "replaceRemovedOptop",
+  "replaceInstalledLichil", "replaceInstalledFasad1", "replaceInstalledFasad2", "replaceInstalledVkp", "replaceInstalledOptop",
+  "controlInstalledLichil", "controlInstalledFasad1", "controlInstalledFasad2", "controlInstalledVkp", "controlInstalledOptop",
+  "closeLichil", "closeFasad1", "closeFasad2", "closeVkp", "closeOptop"
+];
+
+const inventoryMagnetFieldIds = [
+  "removedImp1", "removedImp2", "removedImp3", "installedImp1", "installedImp2", "installedImp3",
+  "replaceRemovedImp1", "replaceRemovedImp2", "replaceRemovedImp3", "replaceInstalledImp1", "replaceInstalledImp2", "replaceInstalledImp3",
+  "controlInstalledImp1", "controlInstalledImp2", "controlInstalledImp3",
+  "closeImp1", "closeImp2", "closeImp3"
+];
+
+function getInventoryStorageKey(type) {
+  return type === "magnet" ? "myMagnetsGEZO" : "myPlombsGEZO";
+}
+
+function getInventoryList(type) {
+  try {
+    const list = JSON.parse(localStorage.getItem(getInventoryStorageKey(type)) || "[]");
+    return Array.isArray(list) ? list : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function setInventoryList(type, list) {
+  localStorage.setItem(getInventoryStorageKey(type), JSON.stringify(list));
+}
+
+function openInventoryModal(type) {
+  currentInventoryType = type === "magnet" ? "magnet" : "plomb";
+  document.getElementById("inventoryModalTitle").textContent = currentInventoryType === "magnet" ? "🧲 Мої магніти" : "🧰 Мої пломби";
+  document.getElementById("inventoryStart").value = "";
+  document.getElementById("inventoryEnd").value = "";
+  document.getElementById("inventoryModal").classList.remove("hidden");
+  updateInventoryUI();
+}
+
+function closeInventoryModal() {
+  document.getElementById("inventoryModal").classList.add("hidden");
+  document.getElementById("inventoryStart").value = "";
+  document.getElementById("inventoryEnd").value = "";
+}
+
+function generateInventoryRange() {
+  const start = cleanPlomb(getVal("inventoryStart"));
+  const end = cleanPlomb(getVal("inventoryEnd"));
+  if (!start || !end) return alert("❌ Введіть початковий і кінцевий номер!");
+
+  const startMatch = start.match(/^([A-ZА-ЯІЇЄҐ]*?)(\d+)$/);
+  const endMatch = end.match(/^([A-ZА-ЯІЇЄҐ]*?)(\d+)$/);
+  if (!startMatch || !endMatch) return alert("❌ Формат: букви + цифри, наприклад С12345");
+  if (startMatch[1] !== endMatch[1]) return alert("❌ Префікси початку та кінця не співпадають!");
+
+  const prefix = startMatch[1];
+  const first = parseInt(startMatch[2], 10);
+  const last = parseInt(endMatch[2], 10);
+  const numberLength = startMatch[2].length;
+  if (first > last) return alert("❌ Початковий номер більший за кінцевий!");
+  if (last - first > 100 && !confirm("Додати більше 100 елементів?")) return;
+
+  const list = getInventoryList(currentInventoryType);
+  let added = 0;
+  for (let n = first; n <= last; n++) {
+    const value = prefix + String(n).padStart(numberLength, "0");
+    if (!list.includes(value)) {
+      list.push(value);
+      added++;
+    }
+  }
+
+  setInventoryList(currentInventoryType, list);
+  document.getElementById("inventoryStart").value = "";
+  document.getElementById("inventoryEnd").value = "";
+  updateInventoryUI();
+  alert(added ? `✅ Додано: ${added}` : "ℹ️ Усі ці елементи вже є у списку.");
+}
+
+function updateInventoryUI() {
+  const plombCount = getInventoryList("plomb").length;
+  const magnetCount = getInventoryList("magnet").length;
+  const plombCountEl = document.getElementById("myPlombsCount");
+  const magnetCountEl = document.getElementById("myMagnetsCount");
+  if (plombCountEl) plombCountEl.textContent = plombCount;
+  if (magnetCountEl) magnetCountEl.textContent = magnetCount;
+
+  const activeList = getInventoryList(currentInventoryType);
+  const modalCount = document.getElementById("inventoryModalCount");
+  const listEl = document.getElementById("inventoryList");
+  if (modalCount) modalCount.textContent = activeList.length;
+  if (listEl) listEl.textContent = activeList.length ? activeList.join(", ") : "Список порожній.";
+}
+
+function clearInventory() {
+  const title = currentInventoryType === "magnet" ? "магнітів" : "пломб";
+  if (!confirm(`Очистити список ${title}?`)) return;
+  setInventoryList(currentInventoryType, []);
+  updateInventoryUI();
+  refreshAllInventoryHints();
+}
+
+function getUsedInventoryValues(type) {
+  const ids = type === "magnet" ? inventoryMagnetFieldIds : inventoryPlombFieldIds;
+  return ids.map(id => cleanPlomb(getVal(id))).filter(Boolean);
+}
+
+function buildInventoryHints(input, type) {
+  const box = input.parentElement.querySelector(".plombHints");
+  if (!box) return;
+  const query = cleanPlomb(input.value).toLowerCase();
+  const used = getUsedInventoryValues(type);
+  const list = getInventoryList(type).filter(value => !query || value.toLowerCase().includes(query));
+
+  box.innerHTML = "";
+  list.slice(0, 150).forEach(value => {
+    const item = document.createElement("div");
+    item.className = "plombHintItem" + (used.includes(value) ? " used" : "");
+    item.textContent = used.includes(value) ? `${value} · вже вибрано` : value;
+    item.onmousedown = function(event) {
+      event.preventDefault();
+      input.value = value;
+      box.classList.add("hidden");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+    box.appendChild(item);
+  });
+  box.classList.toggle("hidden", list.length === 0);
+}
+
+function showInventoryHints(input, type) {
+  buildInventoryHints(input, type);
+}
+
+function filterInventoryHints(input, type) {
+  buildInventoryHints(input, type);
+}
+
+function refreshAllInventoryHints() {
+  document.querySelectorAll(".plombHints").forEach(box => box.classList.add("hidden"));
+  updateInventoryUI();
+}
+
+function initInventoryFields() {
+  const attach = (id, type) => {
+    const input = document.getElementById(id);
+    if (!input || input.dataset.inventoryReady === "1") return;
+    const parent = input.parentElement;
+    parent.classList.add("inventoryField");
+    const box = document.createElement("div");
+    box.className = "plombHints hidden";
+    parent.appendChild(box);
+    input.dataset.inventoryReady = "1";
+    input.addEventListener("focus", () => showInventoryHints(input, type));
+    input.addEventListener("input", () => filterInventoryHints(input, type));
+    input.addEventListener("blur", () => setTimeout(() => box.classList.add("hidden"), 180));
+  };
+  inventoryPlombFieldIds.forEach(id => attach(id, "plomb"));
+  inventoryMagnetFieldIds.forEach(id => attach(id, "magnet"));
+  updateInventoryUI();
+}
+
+function removeUsedInventory(data) {
+  const seals = [data.installedLichil, data.installedFasad1, data.installedFasad2, data.installedVkp, data.installedOptop]
+    .map(cleanPlomb).filter(Boolean);
+  const magnets = [data.installedImp1, data.installedImp2, data.installedImp3]
+    .map(cleanPlomb).filter(Boolean);
+
+  if (seals.length) {
+    setInventoryList("plomb", getInventoryList("plomb").filter(value => !seals.includes(value)));
+  }
+  if (magnets.length) {
+    setInventoryList("magnet", getInventoryList("magnet").filter(value => !magnets.includes(value)));
+  }
+  refreshAllInventoryHints();
+}
+
+initInventoryFields();
+
+/* =========================================================
 ЗАПОВНЕННЯ ФОРМ ДАНИМИ ТА МЕНЕДЖЕР ВІКОН
 ========================================================= */
 let tempReplaceData = null; // Тимчасово зберігає дані абонента для Заміни лічильника
@@ -1816,6 +2062,7 @@ function sendDataToServer(data, hintId, formsToHide) {
     
     // Якщо пароль правильний - відправляємо дані
     google.script.run.withSuccessHandler(function(res) {
+      removeUsedInventory(data);
       if (hintId) { const h = document.getElementById(hintId); if (h) h.textContent = "✅ Збережено"; }
       playSuccessBeep();
       setTimeout(function() {
@@ -1831,6 +2078,7 @@ function sendDataToServer(data, hintId, formsToHide) {
 
 // Допоміжна функція для чистоти коду
 function saveToOfflineStorage(data, hintId) {
+  removeUsedInventory(data);
   let list = JSON.parse(localStorage.getItem("offlineData") || "[]");
   list.push(data);
   localStorage.setItem("offlineData", JSON.stringify(list));
