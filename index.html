@@ -169,25 +169,22 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
 /* МОЇ ПЛОМБИ / МОЇ МАГНІТИ */
 .inventoryButtons { display: flex; gap: 10px; margin-top: 15px; }
 .inventoryBtn { margin-top: 0; min-height: 48px; font-size: 16px; }
-.inventoryBtn.plomb { background: #546e7a; }
-.inventoryBtn.magnet { background: #8e24aa; }
+.btn-plomb { background: #607D8B; }
+.btn-magnet { background: #8e24aa; }
 .inventoryField { position: relative; }
 .plombHints { position: absolute; left: 0; right: 0; top: 100%; margin-top: 2px; background: #fff; border: 1px solid #d9d9d9; border-radius: 8px; max-height: 220px; overflow-y: auto; z-index: 4000; box-shadow: 0 4px 12px rgba(0,0,0,.16); }
 .plombHintItem { padding: 10px 12px; font-size: 15px; cursor: pointer; border-bottom: 1px solid #eee; background: #fff; }
 .plombHintItem:hover { background: #f5f5f5; }
 .plombHintItem.used { background: #fff3e0; color: #e65100; }
-.inventoryModal { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 10003; display: flex; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; }
-.inventoryCard { width: 100%; max-width: 420px; max-height: 90vh; overflow: auto; background: #fff; border-radius: 16px; padding: 20px; box-sizing: border-box; }
-.inventoryHeader { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
-.inventoryHeader h3 { margin: 0; font-size: 21px; color: #333; }
-.inventoryClose { width: auto; min-height: auto; margin: 0; padding: 6px 12px; background: #eee; color: #333; font-size: 16px; }
-.inventoryRange { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.inventoryRange label { display: block; color: #555; font-size: 13px; margin-bottom: 4px; }
-.inventoryActions { display: flex; gap: 10px; }
-.inventoryActions button { font-size: 16px; }
-.inventoryAdd { background: #4caf50; }
-.inventoryClear { background: #d32f2f; }
-.inventoryList { margin-top: 12px; padding: 10px; min-height: 45px; max-height: 180px; overflow-y: auto; background: #f7f7f7; border-radius: 8px; word-break: break-word; line-height: 1.55; font-size: 14px; }
+
+/* МОДАЛЬНЕ ВІКНО ПЛОМБ/МАГНІТІВ, стилістично як у PLC */
+#inventoryModal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10003; display: flex; align-items: center; justify-content: center; }
+.inventoryCard { background: #fff; padding: 20px; border-radius: 12px; width: 90%; max-width: 350px; text-align: center; box-sizing: border-box; max-height: 90vh; overflow-y: auto; }
+.inventoryCard h3 { margin-top: 0; }
+.inventoryCard input { margin-bottom: 10px; }
+.inventoryList { max-height: 150px; overflow-y: auto; background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #ddd; margin: 10px 0; text-align: left; font-size: 14px; color: #555; word-break: break-word; line-height: 1.55; }
+.inventoryClear { background: #e53935; min-height: 40px; margin-top: 5px; font-size: 16px; }
+.inventoryClose { min-height: 40px; margin-top: 10px; }
 .inventoryCount { color: #1565c0; font-weight: bold; }
 
 
@@ -388,10 +385,6 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
       <button class="actionBtn" onclick="offlineMode()" style="background:#607d8b;">Офлайн</button>
     </div>
 
-    <div class="inventoryButtons">
-      <button class="inventoryBtn plomb" onclick="openInventoryModal('plomb')">🧰 Мої пломби (<span id="myPlombsCount">0</span>)</button>
-      <button class="inventoryBtn magnet" onclick="openInventoryModal('magnet')">🧲 Мої магніти (<span id="myMagnetsCount">0</span>)</button>
-    </div>
   </div>
 
   <!-- БЛОК ПОШУКУ ПО ЛІЧИЛЬНИКУ -->
@@ -408,6 +401,17 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
     </div>
 
     <button class="actionBtn" onclick="searchByMeter()" id="btnSearchMeter" style="background:#009688;">Знайти лічильник</button>
+  </div>
+
+  <!-- ОКРЕМИЙ БЛОК, ЯК У ПОШУКУ ПО ЛІЧИЛЬНИКУ -->
+  <div class="card" id="inventoryBlock">
+    <div style="font-size: 16px; font-weight: bold; margin-bottom: 10px; color: #555; text-align: center;">
+      Мої пломби та магніти
+    </div>
+    <div class="inventoryButtons" style="margin-top:0;">
+      <button class="inventoryBtn btn-plomb" onclick="openInventoryModal('plomb')">🧰 Мої пломби (<span id="myPlombsCount">0</span>)</button>
+      <button class="inventoryBtn btn-magnet" onclick="openInventoryModal('magnet')">🧲 Мої магніти (<span id="myMagnetsCount">0</span>)</button>
+    </div>
   </div>
 
  <!-- СКАНЕР (ВІКНО) З КНОПКАМИ ЗУМУ -->
@@ -824,32 +828,22 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
 
 </div>
 
-<!-- МОДАЛЬНЕ ВІКНО: МОЇ ПЛОМБИ / МОЇ МАГНІТИ -->
-<div id="inventoryModal" class="inventoryModal hidden">
+<!-- МОДАЛЬНЕ ВІКНО: МОЇ ПЛОМБИ / МОЇ МАГНІТИ, як у PLC -->
+<div id="inventoryModal" class="hidden">
   <div class="inventoryCard">
-    <div class="inventoryHeader">
-      <h3 id="inventoryModalTitle">🧰 Мої пломби</h3>
-      <button class="inventoryClose" onclick="closeInventoryModal()">✕</button>
-    </div>
+    <h3 id="inventoryModalTitle" style="margin-top:0;">🧰 Додати пломби</h3>
+    <div style="font-size:14px;color:#555;margin-bottom:10px;">Введіть першу та останню пломбу з пачки (напр. С12001 та С12020)</div>
 
-    <div class="inventoryRange">
-      <div>
-        <label for="inventoryStart">Від</label>
-        <input id="inventoryStart" autocomplete="off" placeholder="С00000001">
-      </div>
-      <div>
-        <label for="inventoryEnd">До</label>
-        <input id="inventoryEnd" autocomplete="off" placeholder="С00000020">
-      </div>
-    </div>
+    <input id="inventoryStart" autocomplete="off" placeholder="Початкова">
+    <input id="inventoryEnd" autocomplete="off" placeholder="Кінцева">
+    <button class="actionBtn" onclick="generateInventoryRange()" style="min-height:40px;margin-top:0;">➕ Згенерувати</button>
 
-    <div class="inventoryActions">
-      <button class="inventoryAdd" onclick="generateInventoryRange()">＋ Додати діапазон</button>
-      <button class="inventoryClear" onclick="clearInventory()">Очистити</button>
-    </div>
+    <div class="sectionLine"></div>
+    <div style="font-weight:bold;">Доступні (<span id="inventoryModalCount" class="inventoryCount">0</span> шт):</div>
+    <div class="inventoryList" id="inventoryList">Немає доданих пломб</div>
 
-    <div style="margin-top:12px;">У списку: <span id="inventoryModalCount" class="inventoryCount">0</span></div>
-    <div id="inventoryList" class="inventoryList">Список порожній.</div>
+    <button class="inventoryClear" onclick="clearInventory()">🗑 Очистити всі</button>
+    <button class="btn-back inventoryClose" onclick="closeInventoryModal()">✖ Закрити</button>
   </div>
 </div>
 
@@ -2614,7 +2608,6 @@ window.addEventListener('online', syncOfflineData); // Автоматично п
 </script>
 </body>
 </html>
-  
 
   
   
