@@ -1036,7 +1036,7 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
    МАГІЧНИЙ МІСТ ДЛЯ ЗВ'ЯЗКУ З GOOGLE (POLYFILL)
 ========================================================= */
 // ⚠️⚠️⚠️ ОБОВ'ЯЗКОВО ВСТАВ СЮДИ СВОЄ ПОСИЛАННЯ /EXEC !!!
-const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbxjpZAMHTm3s4i1TyzYbh3hvOCIh8zxcc_tllAmdJb1e0RzVm0Qy3u2d6EBNUzP-IGDiA/exec";
+const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbyxWJUcHia_AUHqD6IYyj-ah5n-_QdhUxxfb4p-tHzM41kR6SexG_O628wYxgcefd69/exec";
 
 function sendRequest(action, payload, callback) {
   const btn = (typeof window.event !== 'undefined' && window.event.target) ? window.event.target : null;
@@ -2125,7 +2125,7 @@ function renderJournalForDate() {
           <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
         </button>
       </div>
-      <div class="journal-work">${escapeHtml(e.workType || "Робота")}</div>
+      <div class="journal-work">${escapeHtml((e.workType === "Заміна лічильника" && e.replaceReason) ? (e.workType + "-" + e.replaceReason) : (e.workType || "Робота"))}</div>
       <div class="journal-pib">${escapeHtml(e.address || e.pib || "—")}</div>
       <div class="journal-meters">
         ${removed.number || removed.type ? `Знятий: ${escapeHtml(removed.type)} ${escapeHtml(removed.number)}<br>` : ""}
@@ -2255,6 +2255,11 @@ function startEditEntry(e) {
     setInner("replaceWorkerTab1", worker); setInner("replaceWorkerName1", workerName); setInner("replaceAccountView1", e.account || ""); setInner("replacePibView1", e.pib || ""); setInner("replaceAddressView1", e.address || "");
     setInner("replaceWorkerTab2", worker); setInner("replaceWorkerName2", workerName); setInner("replaceAccountView2", e.account || "");
     ["RemovedMeterType","RemovedMeterNumber","RemovedT0","RemovedT1","RemovedT2","RemovedT3","InstalledMeterType","InstalledMeterNumber","InstalledT0","InstalledT1","InstalledT2","InstalledT3"].forEach(k => setVal("replace" + k, e[k.charAt(0).toLowerCase() + k.slice(1)] || ""));
+    if (e.replaceReason === "ІП (PLC)") {
+      if (!getVal("replaceInstalledT0")) setVal("replaceInstalledT0", "0000000");
+      if (!getVal("replaceInstalledT1")) setVal("replaceInstalledT1", "0000000");
+      if (!getVal("replaceInstalledT2")) setVal("replaceInstalledT2", "0000000");
+    }
     ["Lichil","Fasad1","Fasad2","Vkp","Optop","Imp1","Imp2","Imp3","Other"].forEach(k => { setVal("replaceRemoved" + k, e["removed" + k] || ""); setVal("replaceInstalled" + k, e["installed" + k] || ""); });
     setJournalPhotoState("replaceRemoved", e.photoUrl);
     setJournalPhotoState("replaceInstalled", e.installedPhotoUrl);
@@ -2330,8 +2335,7 @@ const METER_TYPE_ALIASES = {
   'ЛЕО-М1.4': 'ЛЭО-М1.4',
   'НІК 2102 01.Е2ТР1': 'НІК 2102-01.Е2ТР1',
   'СО-ЭА09М2': 'СОЕА09М',
-  'GAMA 100 G1Y.163': 'GAMMA 100 G1Y.163',
-  'НІК 2100 АР6Т.2902.МС.11': 'NIK 2100 АР6Т.2902.МС.11'
+  'GAMA 100 G1Y.163': 'GAMMA 100 G1Y.163'
 };
 
 function normalizeMeterTypeForForm(rawType) {
@@ -2700,7 +2704,10 @@ function goToReplaceStep2(){
   document.getElementById("meterReplaceStep1").classList.add("hidden"); document.getElementById("meterReplaceStep2").classList.remove("hidden");
   setInner("replaceWorkerTab2", getInner("replaceWorkerTab1")); setInner("replaceWorkerName2", getInner("replaceWorkerName1")); setInner("replaceAccountView2", getInner("replaceAccountView1")); setInner("replacePibView2", getInner("replacePibView1")); setInner("replaceAddressView2", getInner("replaceAddressView1"));
   setVal("replaceInstalledMeterType", ""); setVal("replaceInstalledMeterNumber", ""); setVal("replaceInstalledLichil", ""); setVal("replaceInstalledOptop", ""); setVal("replaceInstalledFasad1", ""); setVal("replaceInstalledFasad2", ""); setVal("replaceInstalledVkp", ""); setVal("replaceInstalledImp1", ""); setVal("replaceInstalledImp2", ""); setVal("replaceInstalledImp3", ""); setVal("replaceInstalledOther", ""); resizeTextarea(document.getElementById("replaceInstalledOther"));
-  setVal("replaceInstalledT0", ""); setVal("replaceInstalledT1", ""); setVal("replaceInstalledT2", ""); setVal("replaceInstalledT3", "");
+  setVal("replaceInstalledT0", selectedReplaceReason === "ІП (PLC)" ? "0000000" : "");
+  setVal("replaceInstalledT1", selectedReplaceReason === "ІП (PLC)" ? "0000000" : "");
+  setVal("replaceInstalledT2", selectedReplaceReason === "ІП (PLC)" ? "0000000" : "");
+  setVal("replaceInstalledT3", "");
 }
 
 function backFromReplace1(){ if(isFasadFlow){ document.getElementById("meterReplaceStep1").classList.add("hidden"); document.getElementById("fasadStep3").classList.remove("hidden"); } else { showSearchBlock(); } }
@@ -3610,6 +3617,8 @@ window.addEventListener('online', syncOfflineData); // Автоматично п
 </script>
 </body>
 </html>
+  
+  
   
   
   
