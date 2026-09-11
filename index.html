@@ -186,6 +186,33 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
 .inventoryClose { min-height: 40px; margin-top: 10px; }
 .inventoryCount { color: #1565c0; font-weight: bold; }
 
+/* ЖУРНАЛ ЗА СЬОГОДНІ, структура як у PLC */
+.btn-journal { background: #00897B; }
+#journalModal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10004; display: flex; align-items: flex-end; justify-content: center; }
+.journal-card { background: #fff; width: 100%; max-width: 480px; border-radius: 16px 16px 0 0; padding: 16px; max-height: 86vh; display: flex; flex-direction: column; box-sizing: border-box; }
+.journal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.journal-header-title { font-size: 17px; font-weight: bold; }
+.journal-list { overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.journal-item { border: 1px solid #e0e0e0; border-radius: 10px; padding: 10px 12px; font-size: 14px; }
+.journal-item-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 5px; }
+.journal-top-mid { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+.journal-acc { font-weight: bold; font-size: 15px; color: #1565c0; white-space: nowrap; }
+.journal-time { font-size: 12px; color: #888; white-space: nowrap; }
+.journal-work { font-size: 12px; color: #555; font-weight: bold; margin-bottom: 3px; }
+.journal-pib { color: #333; margin-bottom: 3px; }
+.journal-meters { font-size: 12px; color: #555; line-height: 1.45; }
+.icon-btn { width:32px !important; min-height:32px !important; margin-top:0 !important; background:none; border:none; cursor:pointer; padding:6px; display:flex; align-items:center; justify-content:center; border-radius:50%; flex-shrink:0; }
+.icon-btn:active { background:#eee; transform: scale(0.92); }
+.icon-btn svg { width:20px; height:20px; }
+.icon-share svg { fill:#1565c0; }
+.icon-delete svg { fill:#888; }
+.icon-form svg { fill:#9e9e9e; }
+.icon-form.pending svg { fill:#f9a825; }
+.icon-form.submitted svg { fill:#43a047; }
+.badge-online { background: #e8f5e9; color: #2e7d32; font-size: 11px; padding: 2px 8px; border-radius: 20px; }
+.badge-offline { background: #fff3e0; color: #e65100; font-size: 11px; padding: 2px 8px; border-radius: 20px; }
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:10005; display:flex; align-items:center; justify-content:center; }
+.modal-card { background:white; border-radius:12px; padding:20px; width:85%; max-width:320px; text-align:center; }
 
 /* ПРОФЕСІЙНИЙ СКАНЕР (ZXing) */
 #scanner-wrapper { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 10000; align-items: center; justify-content: center; flex-direction: column; }
@@ -383,6 +410,7 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
       <button class="actionBtn" onclick="search()" id="btnSearch">Знайти</button>
       <button class="actionBtn" onclick="offlineMode()" style="background:#607d8b;">Офлайн</button>
     </div>
+    <button class="btn-journal" onclick="openJournalModal()" style="margin-top:10px;">📋 Журнал за сьогодні (<span id="journalCount">0</span>)</button>
 
   </div>
 
@@ -939,6 +967,26 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
 
 <div id="debugBox" style="margin:10px; padding:10px; background:#fff3e0; border-radius:8px; font-size:12px; word-break:break-all; white-space:pre-wrap; display:none;"></div>
 
+<!-- ЖУРНАЛ ЗА СЬОГОДНІ -->
+<div id="journalModal" class="hidden">
+  <div class="journal-card">
+    <div class="journal-header">
+      <span class="journal-header-title">📋 Журнал за сьогодні</span>
+      <button onclick="closeJournalModal()" style="width:auto;min-height:auto;background:#eee;color:#333;padding:6px 14px;margin:0;font-size:14px;">✕ Закрити</button>
+    </div>
+    <div class="journal-list" id="journalList"></div>
+  </div>
+</div>
+
+<div id="entryActionsModal" class="hidden modal-overlay">
+  <div class="modal-card">
+    <div style="font-size:16px; font-weight:bold; margin-bottom:16px;">Що зробити із записом?</div>
+    <button onclick="editCurrentJournalEntry()" style="width:100%; padding:12px; margin-bottom:10px; background:#2196F3; color:white; border:none; border-radius:8px; font-size:16px; font-weight:bold;">✏️ Правити</button>
+    <button onclick="deleteCurrentJournalEntry()" style="width:100%; padding:12px; margin-bottom:10px; background:#e53935; color:white; border:none; border-radius:8px; font-size:16px; font-weight:bold;">🗑 Видалити</button>
+    <button onclick="closeEntryActionsModal()" style="width:100%; padding:10px; background:#eee; color:#333; border:none; border-radius:8px; font-size:14px;">Скасувати</button>
+  </div>
+</div>
+
 <!-- МОДАЛЬНЕ ВІКНО: МОЇ ПЛОМБИ / МОЇ МАГНІТИ, як у PLC -->
 <div id="inventoryModal" class="hidden">
   <div class="inventoryCard">
@@ -988,7 +1036,7 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
    МАГІЧНИЙ МІСТ ДЛЯ ЗВ'ЯЗКУ З GOOGLE (POLYFILL)
 ========================================================= */
 // ⚠️⚠️⚠️ ОБОВ'ЯЗКОВО ВСТАВ СЮДИ СВОЄ ПОСИЛАННЯ /EXEC !!!
-const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbxoMhWGogikxAgiPJ5x2b1b8rVGOiCvBM66F1OsingxMzPFSNpOkD3BJUijPSI2h0UNBA/exec";
+const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbyxWJUcHia_AUHqD6IYyj-ah5n-_QdhUxxfb4p-tHzM41kR6SexG_O628wYxgcefd69/exec";
 
 function sendRequest(action, payload, callback) {
   const btn = (typeof window.event !== 'undefined' && window.event.target) ? window.event.target : null;
@@ -1037,6 +1085,9 @@ const google = {
           searchAccounts: (part) => sendRequest("searchAccounts", {part}, callback),
           getMeterTypes: () => sendRequest("getMeterTypes", {}, callback),
           saveData: (data) => sendRequest("saveData", {data}, callback),
+          updateData: (data) => sendRequest("updateData", {data}, callback),
+          deleteRow: (data) => sendRequest("deleteRow", {data}, callback),
+          updateFormStatus: (data) => sendRequest("updateFormStatus", {data}, callback),
           deletePhoto: (publicId) => sendRequest("deletePhoto", {publicId}, callback)
         };
       },
@@ -1051,6 +1102,9 @@ const google = {
 let worker = ""; let workerName = ""; let selectedWork = "";
 let hintTimer = null; let meterTypes = [];
 let isFasadFlow = false;
+let editingJournalEntryId = null;
+let editingJournalTs = null;
+let currentEntryContext = null;
 
 function getVal(id) { const el = document.getElementById(id); return el ? el.value.trim() : ""; }
 function getInner(id) { const el = document.getElementById(id); return el ? el.innerText.trim() : ""; }
@@ -1101,6 +1155,7 @@ window.onload = function(){
   }
   
   updateOfflineCount();
+  updateJournalCount();
 
   // --- БРОНЕБІЙНА КЛАВІАТУРА (Повертаємо на місце) ---
   const loginBox = document.getElementById("login");
@@ -1903,6 +1958,411 @@ Object.keys(photoState).forEach(slot => {
   });
 });
 
+
+/* =========================================================
+ЖУРНАЛ ЗА СЬОГОДНІ, правка, видалення та Google Форма
+========================================================= */
+const JOURNAL_KEY = "journalGEZO";
+const FORM_STATUS_KEY = "formStatusMapGEZO";
+const GOOGLE_FORM_BASE_GEZO = "https://docs.google.com/forms/d/e/1FAIpQLSfj1wXEHe0VsHAmkIY_MWK_a9cbzDgyIPmPJ3h1lCijIwAL-A/viewform";
+let formStatusMapGEZO = JSON.parse(localStorage.getItem(FORM_STATUS_KEY) || "{}");
+
+function readJournal() {
+  try {
+    const value = JSON.parse(localStorage.getItem(JOURNAL_KEY) || "[]");
+    return Array.isArray(value) ? value : [];
+  } catch (e) { return []; }
+}
+
+function writeJournal(list) {
+  localStorage.setItem(JOURNAL_KEY, JSON.stringify(list));
+  updateJournalCount();
+}
+
+function addToJournal(payload, status) {
+  let journal = readJournal();
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 90);
+  journal = journal.filter(e => e.ts && new Date(e.ts) >= cutoff);
+  journal.push({ ...payload, ts: new Date().toISOString(), status: status || "online" });
+  writeJournal(journal);
+}
+
+function updateJournalEntryInPlace(payload, status) {
+  const journal = readJournal();
+  const idx = journal.findIndex(e => e.ts === editingJournalTs || e.entryId === payload.entryId);
+  if (idx === -1) return;
+  const old = journal[idx];
+  journal[idx] = { ...old, ...payload, ts: old.ts, status: status || old.status || "online" };
+  writeJournal(journal);
+}
+
+function updateJournalCount() {
+  const today = new Date().toDateString();
+  const el = document.getElementById("journalCount");
+  if (el) el.textContent = readJournal().filter(e => new Date(e.ts).toDateString() === today).length;
+}
+
+function escapeHtml(value) {
+  return String(value == null ? "" : value)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+function getJournalSideData(e, side) {
+  if (side === "removed") {
+    return {
+      type: e.removedMeterType || "",
+      number: e.removedMeterNumber || "",
+      readings: [e.removedT0, e.removedT1, e.removedT2, e.removedT3],
+      photos: e.photoUrl || ""
+    };
+  }
+  const isSingleMeter = e.mode === "tech" || e.mode === "control";
+  return {
+    type: isSingleMeter ? (e.meterType || "") : (e.installedMeterType || ""),
+    number: isSingleMeter ? (e.meterNumber || "") : (e.installedMeterNumber || ""),
+    readings: isSingleMeter ? [e.t0, e.t1, e.t2, e.t3] : [e.installedT0, e.installedT1, e.installedT2, e.installedT3],
+    photos: e.installedPhotoUrl || ""
+  };
+}
+
+function buildJournalReadings(values) {
+  const clean = (values || []).filter(v => v && String(v) !== "0000000");
+  return clean.length ? clean.join("/") : "";
+}
+
+function buildJournalPhotoLinks(value, label) {
+  return String(value || "").split("\n").filter(u => u.trim()).map((url, i, arr) => {
+    const suffix = arr.length > 1 ? " " + (i + 1) : "";
+    return `<a href="${escapeHtml(url.trim())}" target="_blank" rel="noopener" style="color:#1565c0;text-decoration:underline;">📷 ${label}${suffix}</a>`;
+  }).join(" &nbsp;|&nbsp; ");
+}
+
+function buildJournalPlombLine(e, side) {
+  const prefix = side === "removed" ? "removed" : "installed";
+  const map = [
+    ["Кр", e[prefix + "Lichil"]], ["ШО1", e[prefix + "Fasad1"]], ["ШО2", e[prefix + "Fasad2"]],
+    ["ВКП", e[prefix + "Vkp"]], ["Опт", e[prefix + "Optop"]], ["ІМП1", e[prefix + "Imp1"]],
+    ["ІМП2", e[prefix + "Imp2"]], ["ІМП3", e[prefix + "Imp3"]]
+  ];
+  const parts = map.filter(([, value]) => value).map(([name, value]) => `${name}: ${escapeHtml(value)}`);
+  return parts.length ? "🔒 " + parts.join(" · ") : "";
+}
+
+function getJournalDayEntries(dateStr) {
+  return readJournal().filter(e => new Date(e.ts).toDateString() === dateStr).slice().reverse();
+}
+
+function openJournalModal() {
+  const journal = readJournal();
+  const dates = {};
+  journal.forEach(e => {
+    const d = new Date(e.ts).toDateString();
+    if (!dates[d]) dates[d] = [];
+    dates[d].push(e);
+  });
+  const today = new Date().toDateString();
+  if (!dates[today]) dates[today] = [];
+  const sorted = Object.keys(dates).sort((a, b) => new Date(b) - new Date(a));
+  const options = sorted.map(d => {
+    const label = d === today ? "Сьогодні" : new Date(d).toLocaleDateString("uk-UA", { day: "numeric", month: "long" });
+    return `<option value="${escapeHtml(d)}">${label} (${dates[d].length})</option>`;
+  }).join("");
+  document.getElementById("journalList").innerHTML = `
+    <div style="margin-bottom:10px;">
+      <select id="journalDateSelect" onchange="renderJournalForDate()" style="width:100%;padding:10px;font-size:16px;border-radius:8px;border:1px solid #ccc;">
+        ${options}
+      </select>
+    </div>
+    <div id="journalDayList"></div>`;
+  document.getElementById("journalModal").classList.remove("hidden");
+  renderJournalForDate();
+}
+
+function closeJournalModal() {
+  document.getElementById("journalModal").classList.add("hidden");
+}
+
+function renderJournalForDate() {
+  const select = document.getElementById("journalDateSelect");
+  const container = document.getElementById("journalDayList");
+  if (!select || !container) return;
+  const selectedDate = select.value;
+  const entries = getJournalDayEntries(selectedDate);
+  if (!entries.length) {
+    container.innerHTML = '<div style="text-align:center;color:#888;padding:20px;">Немає записів</div>';
+    return;
+  }
+
+  container.innerHTML = entries.map((e, index) => {
+    const time = new Date(e.ts);
+    const timeStr = time.getHours().toString().padStart(2, "0") + ":" + time.getMinutes().toString().padStart(2, "0");
+    const badge = e.status === "online" ? '<span class="badge-online">✓ збережено</span>' : '<span class="badge-offline">⚠ офлайн</span>';
+    const removed = getJournalSideData(e, "removed");
+    const installed = getJournalSideData(e, "installed");
+    const removedReadings = buildJournalReadings(removed.readings);
+    const installedReadings = buildJournalReadings(installed.readings);
+    const formState = e.entryId ? getFormStateGEZO(e.entryId) : "idle";
+    const dateArg = JSON.stringify(selectedDate);
+    return `<div class="journal-item">
+      <div class="journal-item-top">
+        <button class="icon-btn icon-share" onclick="shareJournalEntry(${index}, ${dateArg})" title="Надіслати">
+          <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
+        </button>
+        <div class="journal-top-mid">
+          <span class="journal-acc">О/р: ${escapeHtml(e.account || "—")}</span>
+          <span class="journal-time">${timeStr} ${badge}</span>
+        </div>
+        <button class="icon-btn icon-form ${formState === "submitted" ? "submitted" : formState === "pending" ? "pending" : ""}" onclick="handleFormIconClick(${index}, ${dateArg})" title="Google Форма">
+          <svg viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+        </button>
+        <button class="icon-btn icon-delete" onclick="openEntryActions(${index}, ${dateArg})" title="Дії із записом">
+          <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        </button>
+      </div>
+      <div class="journal-work">${escapeHtml(e.workType || "Робота")}</div>
+      <div class="journal-pib">${escapeHtml(e.address || e.pib || "—")}</div>
+      <div class="journal-meters">
+        ${removed.number || removed.type ? `Знятий: ${escapeHtml(removed.type)} ${escapeHtml(removed.number)}<br>` : ""}
+        ${removedReadings ? `<b>Покази знятого: ${escapeHtml(removedReadings)}</b><br>` : ""}
+        ${removed.photos ? buildJournalPhotoLinks(removed.photos, "Знятий") + "<br>" : ""}
+        ${buildJournalPlombLine(e, "removed") ? buildJournalPlombLine(e, "removed") + "<br>" : ""}
+        ${installed.number || installed.type ? `Встановлений: ${escapeHtml(installed.type)} ${escapeHtml(installed.number)}<br>` : ""}
+        ${installedReadings ? `<b>Покази встановленого: ${escapeHtml(installedReadings)}</b><br>` : ""}
+        ${installed.photos ? buildJournalPhotoLinks(installed.photos, "Встановлений") + "<br>" : ""}
+        ${buildJournalPlombLine(e, "installed")}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function openEntryActions(index, dateStr) {
+  currentEntryContext = { index, dateStr };
+  document.getElementById("entryActionsModal").classList.remove("hidden");
+}
+
+function closeEntryActionsModal() {
+  document.getElementById("entryActionsModal").classList.add("hidden");
+  currentEntryContext = null;
+}
+
+function getContextEntry() {
+  if (!currentEntryContext) return null;
+  return getJournalDayEntries(currentEntryContext.dateStr)[currentEntryContext.index] || null;
+}
+
+function requestGoogle(action, payload) {
+  return new Promise((resolve) => {
+    sendRequest(action, payload, resolve);
+  });
+}
+
+async function deleteCurrentJournalEntry() {
+  const target = getContextEntry();
+  if (!target) return;
+  if (!confirm("⚠️ Видалити цей запис?\n\nОнлайн-запис буде видалено з Google Таблиці та з журналу. Фото також будуть видалені з Cloudinary.")) return;
+  closeEntryActionsModal();
+
+  if (target.status !== "offline") {
+    if (!navigator.onLine) return alert("❌ Для видалення онлайн-запису потрібен інтернет.");
+    const res = await requestGoogle("deleteRow", { data: { entryId: target.entryId, worker: target.worker || worker, account: target.account || "" } });
+    if (!res || res.success === false) {
+      if (res && res.message && res.message.includes("не знайдено")) {
+        if (!confirm("Запис уже відсутній у таблиці. Видалити його тільки з журналу?")) return;
+      } else {
+        return alert("❌ Не вдалося видалити запис з таблиці: " + JSON.stringify(res));
+      }
+    }
+  }
+
+  let journal = readJournal().filter(e => e.ts !== target.ts);
+  writeJournal(journal);
+  let offline = JSON.parse(localStorage.getItem("offlineData") || "[]");
+  offline = offline.filter(e => e.entryId !== target.entryId);
+  localStorage.setItem("offlineData", JSON.stringify(offline));
+  updateOfflineCount();
+  if (document.getElementById("journalDateSelect")) renderJournalForDate();
+}
+
+function editCurrentJournalEntry() {
+  const target = getContextEntry();
+  if (!target) return;
+  closeEntryActionsModal();
+  startEditEntry(target);
+}
+
+function setJournalPhotoState(slot, value) {
+  const state = photoState[slot];
+  if (!state) return;
+  state.urls = String(value || "").split("\n").filter(u => u.trim());
+  const hidden = document.getElementById("photoUrl_" + slot);
+  if (hidden) hidden.value = state.urls.join("\n");
+  renderPhotoThumbnails(slot);
+}
+
+function setRadioValue(name, value) {
+  document.querySelectorAll(`input[name="${name}"]`).forEach(input => { input.checked = input.value === String(value || ""); });
+}
+
+function setEditCommon(prefix, e) {
+  setInner(prefix + "WorkerTab", worker);
+  setInner(prefix + "WorkerName", workerName);
+}
+
+function startEditEntry(e) {
+  if (!e || !e.entryId) return alert("⚠️ У цього запису немає ID, редагування неможливе.");
+  editingJournalEntryId = e.entryId;
+  editingJournalTs = e.ts;
+  selectedWork = e.workType || "";
+  isFasadFlow = e.mode === "fasad_replace";
+  hideAllForms();
+  document.getElementById("searchBlock").style.display = "none";
+  document.getElementById("searchMeterBlock").style.display = "none";
+  document.getElementById("inventoryBlock").style.display = "none";
+  closeJournalModal();
+  resetAllPhotoUI();
+
+  if (e.mode === "tech" || (!e.mode && e.workType === "Технічна перевірка")) {
+    setEditCommon("", e);
+    setInner("accountView", e.account || ""); setInner("pibView", e.pib || ""); setInner("addressView", e.address || "");
+    ["meterType","meterNumber","t0","t1","t2","t3"].forEach(id => setVal(id, e[id] || ""));
+    ["Lichil","Fasad1","Fasad2","Vkp","Optop","Imp1","Imp2","Imp3","Other"].forEach(k => { setVal("removed" + k, e["removed" + k] || ""); setVal("installed" + k, e["installed" + k] || ""); });
+    setJournalPhotoState("tech", e.installedPhotoUrl);
+    document.getElementById("techCheckForm").classList.remove("hidden");
+  } else if (e.mode === "control" || e.workType === "Контрольний огляд") {
+    setInner("controlWorkerTab", worker); setInner("controlWorkerName", workerName); setInner("controlAccountView", e.account || ""); setInner("controlPibView", e.pib || ""); setInner("controlAddressView", e.address || "");
+    ["MeterType","MeterNumber","T0","T1","T2","T3"].forEach(k => setVal("control" + k, e[k.charAt(0).toLowerCase() + k.slice(1)] || ""));
+    ["Lichil","Fasad1","Fasad2","Vkp","Optop","Imp1","Imp2","Imp3","Other"].forEach(k => setVal("controlInstalled" + k, e["installed" + k] || ""));
+    setJournalPhotoState("control", e.installedPhotoUrl);
+    document.getElementById("controlCheckForm").classList.remove("hidden");
+  } else if (e.mode === "close" || e.workType === "Закриття о/р з демонтажем") {
+    setInner("closeWorkerTab1", worker); setInner("closeWorkerName1", workerName); setInner("closeAccountView1", e.account || ""); setInner("closePibView1", e.pib || ""); setInner("closeAddressView1", e.address || "");
+    setInner("closeWorkerTab2", worker); setInner("closeWorkerName2", workerName); setInner("closeAccountView2", e.account || "");
+    setVal("closeDemoMark", e.demoMark || ""); setVal("closeDemoLength", e.demoLength || "");
+    const demo = document.getElementById("closeDemoBy"); if (demo) demo.checked = e.demoBy === "ОРБ";
+    ["MeterType","MeterNumber","T0","T1","T2","T3","Lichil","Fasad1","Fasad2","Vkp","Optop","Imp1","Imp2","Imp3","Other"].forEach(k => setVal("close" + k, e["removed" + k] || ""));
+    setJournalPhotoState("close", e.photoUrl);
+    document.getElementById("closeStep2").classList.remove("hidden");
+  } else {
+    // Заміна лічильника або фасадні роботи
+    setInner("replaceWorkerTab1", worker); setInner("replaceWorkerName1", workerName); setInner("replaceAccountView1", e.account || ""); setInner("replacePibView1", e.pib || ""); setInner("replaceAddressView1", e.address || "");
+    setInner("replaceWorkerTab2", worker); setInner("replaceWorkerName2", workerName); setInner("replaceAccountView2", e.account || "");
+    ["RemovedMeterType","RemovedMeterNumber","RemovedT0","RemovedT1","RemovedT2","RemovedT3","InstalledMeterType","InstalledMeterNumber","InstalledT0","InstalledT1","InstalledT2","InstalledT3"].forEach(k => setVal("replace" + k, e[k.charAt(0).toLowerCase() + k.slice(1)] || ""));
+    ["Lichil","Fasad1","Fasad2","Vkp","Optop","Imp1","Imp2","Imp3","Other"].forEach(k => { setVal("replaceRemoved" + k, e["removed" + k] || ""); setVal("replaceInstalled" + k, e["installed" + k] || ""); });
+    setJournalPhotoState("replaceRemoved", e.photoUrl);
+    setJournalPhotoState("replaceInstalled", e.installedPhotoUrl);
+
+    if (e.mode === "fasad_replace") {
+      setRadioValue("phase", e.fasadPhase);
+      setRadioValue("reason", e.fasadReason);
+      setRadioValue("area", e.fasadArea);
+      setRadioValue("type", e.fasadType);
+      setVal("fasadOrder", e.fasadOrder || "");
+      setVal("fasadDemoMark", e.demoMark || ""); setVal("fasadDemoLength", e.demoLength || "");
+      const demo = document.getElementById("fasadDemoBy"); if (demo) demo.checked = e.demoBy === "ОРБ";
+      const materialKeys = ["f1_box","f1_nom","f1_asxsn","f1_zn","f1_zv","f1_cable","f1_gofra","f1_clip","f1_anker","f1_dubel","f1_boxk","f1_styajka","f1_other","f3_box","f3_nom","f3_asxsn","f3_zn","f3_zv","f3_cable","f3_gofra","f3_clip","f3_anker","f3_dubel","f3_boxk","f3_styajka","f3_other"];
+      materialKeys.forEach(k => setVal(k, e[k] || ""));
+      document.getElementById("fasadStep1").classList.add("hidden");
+      document.getElementById("fasadStep2").classList.add("hidden");
+      document.getElementById("fasadStep3").classList.add("hidden");
+    }
+    document.getElementById("meterReplaceStep2").classList.remove("hidden");
+  }
+  window.scrollTo(0, 0);
+}
+
+function getFormStateGEZO(entryId) { return formStatusMapGEZO[entryId] || "idle"; }
+function setFormStateGEZO(entryId, state) {
+  formStatusMapGEZO[entryId] = state;
+  localStorage.setItem(FORM_STATUS_KEY, JSON.stringify(formStatusMapGEZO));
+}
+
+function formReadings(e, side) {
+  const d = getJournalSideData(e, side);
+  return buildJournalReadings(d.readings);
+}
+
+function normalizeMeterForGEZOForm(value) { return value || ""; }
+
+function buildGoogleFormUrlGEZO(e) {
+  const d = new Date(e.ts || Date.now());
+  const dateStr = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const removed = getJournalSideData(e, "removed");
+  const installed = getJournalSideData(e, "installed");
+  const params = {
+    usp: "pp_url",
+    "entry.1010154509": dateStr,
+    "entry.1609399626": e.workType || "",
+    "entry.203178877": e.replaceReason || e.fasadReason || "",
+    "entry.1583379400": e.worker || worker || "",
+    "entry.244962092": e.account || "",
+    "entry.155422969": normalizeMeterForGEZOForm(removed.type),
+    "entry.1262021573": removed.number,
+    "entry.1666715724": formReadings(e, "removed"),
+    "entry.980914247": e.removedLichil || "",
+    "entry.1281985427": e.removedVkp || "",
+    "entry.1571141896": e.removedFasad1 || "",
+    "entry.950038743": e.removedFasad2 || "",
+    "entry.1825187506": e.removedOptop || "",
+    "entry.1564992043": e.removedOther || "",
+    "entry.851707833": e.removedImp1 || "",
+    "entry.1653188291": e.removedImp2 || "",
+    "entry.174981808": e.removedImp3 || "",
+    "entry.1958360409": normalizeMeterForGEZOForm(installed.type),
+    "entry.591456354": installed.number,
+    "entry.686446183": formReadings(e, "installed"),
+    "entry.1577377109": e.installedLichil || "",
+    "entry.1292803469": e.installedVkp || "",
+    "entry.1309070612": e.installedFasad1 || "",
+    "entry.1176747559": e.installedFasad2 || "",
+    "entry.67142835": e.installedOptop || "",
+    "entry.1726388226": e.installedOther || "",
+    "entry.245114888": e.installedImp1 || "",
+    "entry.1581321253": e.installedImp2 || "",
+    "entry.865785872": e.installedImp3 || ""
+  };
+  const query = Object.entries(params).filter(([, value]) => value !== undefined && value !== "")
+    .map(([key, value]) => encodeURIComponent(key) + "=" + encodeURIComponent(value)).join("&");
+  return GOOGLE_FORM_BASE_GEZO + "?" + query;
+}
+
+async function handleFormIconClick(index, dateStr) {
+  const e = getJournalDayEntries(dateStr)[index];
+  if (!e || !e.entryId) return alert("⚠️ У запису немає ID, автозаповнення форми недоступне.");
+  const state = getFormStateGEZO(e.entryId);
+  if (state === "idle") {
+    window.open(buildGoogleFormUrlGEZO(e), "_blank");
+    setFormStateGEZO(e.entryId, "pending");
+    renderJournalForDate();
+    setTimeout(() => alert("📋 Заповніть форму і натисніть «Надіслати». Потім поверніться сюди та натисніть цю іконку ще раз."), 300);
+  } else if (state === "pending") {
+    if (confirm("Підтвердити, що Google Форму заповнено і надіслано?")) {
+      setFormStateGEZO(e.entryId, "submitted");
+      renderJournalForDate();
+      if (navigator.onLine) requestGoogle("updateFormStatus", { data: { entryId: e.entryId, formSubmitted: true } });
+    }
+  } else {
+    window.open(buildGoogleFormUrlGEZO(e), "_blank");
+  }
+}
+
+function shareJournalEntry(index, dateStr) {
+  const e = getJournalDayEntries(dateStr)[index];
+  if (!e) return alert("Запис не знайдено");
+  const removed = getJournalSideData(e, "removed");
+  const installed = getJournalSideData(e, "installed");
+  let text = `📋 ${e.workType || "Робота"}\nО/р: ${e.account || "—"}\nАдреса: ${e.address || "—"}\n\n`;
+  if (removed.type || removed.number) text += `Знятий: ${removed.type} ${removed.number}\n`;
+  if (formReadings(e, "removed")) text += `Покази знятого: ${formReadings(e, "removed")}\n`;
+  if (removed.photos) removed.photos.split("\n").filter(Boolean).forEach((url, i) => text += `Фото знятого ${i + 1}: ${url}\n`);
+  if (installed.type || installed.number) text += `\nВстановлений: ${installed.type} ${installed.number}\n`;
+  if (formReadings(e, "installed")) text += `Покази встановленого: ${formReadings(e, "installed")}\n`;
+  if (installed.photos) installed.photos.split("\n").filter(Boolean).forEach((url, i) => text += `Фото встановленого ${i + 1}: ${url}\n`);
+  if (navigator.share) navigator.share({ title: `ГЕЗО, О/р ${e.account || ""}`, text }).catch(() => {});
+  else navigator.clipboard.writeText(text).then(() => alert("📋 Дані скопійовано в буфер обміну."));
+}
+
 /* =========================================================
 ЗАПОВНЕННЯ ФОРМ ДАНИМИ ТА МЕНЕДЖЕР ВІКОН
 ========================================================= */
@@ -1997,6 +2457,8 @@ function hideAllForms() {
 
 function showSearchBlock() {
   hideAllForms();
+  editingJournalEntryId = null;
+  editingJournalTs = null;
   resetAllPhotoUI();
   clearSaveStatus();
   // Повертаємо обидва блоки пошуку на екран
@@ -2372,57 +2834,54 @@ function saveFasadData() {
 }
 
 function sendDataToServer(data, hintId, formsToHide) {
-  // 1. ПЕРЕВІРКА ОФЛАЙНУ (Перша і головна)
+  const isEditing = Boolean(editingJournalEntryId);
   if (!navigator.onLine) {
-    saveToOfflineStorage(data, hintId); // Виносимо офлайн-логіку в окрему функцію
-    return; // Виходимо, щоб не смикати сервер
+    if (isEditing) return alert("❌ Редагування запису потребує інтернету.");
+    saveToOfflineStorage(data, hintId);
+    return;
   }
 
-  // 2. ЯКЩО ІНТЕРНЕТ Є — перевіряємо доступ
   const tab = localStorage.getItem("worker");
   const pass = localStorage.getItem("workerPass");
 
-  google.script.run.withSuccessHandler(function(res) {
-    if (!res.authorized) {
+  google.script.run.withSuccessHandler(function(auth) {
+    if (!auth.authorized) {
       alert("⚠️ Доступ заборонено! Пароль було змінено.");
       localStorage.clear();
       location.reload();
       return;
     }
-    
-    // Якщо пароль правильний - відправляємо дані
-    google.script.run.withSuccessHandler(function(res) {
+
+    const finish = function(res) {
+      if (res && res.success === false) return alert("❌ " + (res.message || "Не вдалося зберегти запис"));
       removeUsedInventory(data);
-      if (hintId) { const h = document.getElementById(hintId); if (h) h.textContent = "✅ Збережено"; }
+      if (isEditing) updateJournalEntryInPlace(data, "online");
+      else addToJournal(data, "online");
+      if (hintId) { const h = document.getElementById(hintId); if (h) h.textContent = isEditing ? "✅ Зміни збережено" : "✅ Збережено"; }
       playSuccessBeep();
+      editingJournalEntryId = null;
+      editingJournalTs = null;
       setTimeout(function() {
-        resetFasadForm();
-        resetCloseForm();
-        resetReplaceForm();
-        showSearchBlock();
+        resetFasadForm(); resetCloseForm(); resetReplaceForm(); resetAllPhotoUI(); showSearchBlock();
       }, 1500);
-    }).saveData(data);
-    
+    };
+
+    if (isEditing) google.script.run.withSuccessHandler(finish).updateData(data);
+    else google.script.run.withSuccessHandler(finish).saveData(data);
   }).verifyAccess(tab, pass);
 }
 
-// Допоміжна функція для чистоти коду
 function saveToOfflineStorage(data, hintId) {
   removeUsedInventory(data);
   let list = JSON.parse(localStorage.getItem("offlineData") || "[]");
   list.push(data);
   localStorage.setItem("offlineData", JSON.stringify(list));
-  
+  addToJournal(data, "offline");
   updateOfflineCount();
   playSuccessBeep();
-  
   if (hintId) { const h = document.getElementById(hintId); if (h) h.textContent = "💾 Збережено офлайн"; }
-  
   setTimeout(function() {
-    resetFasadForm();
-    resetCloseForm();
-    resetReplaceForm();
-    showSearchBlock();
+    resetFasadForm(); resetCloseForm(); resetReplaceForm(); resetAllPhotoUI(); showSearchBlock();
   }, 1500);
 }
 
@@ -2454,9 +2913,11 @@ function collectTechData() {
   return { 
     worker: worker, 
     workType: selectedWork, 
+    mode: "tech",
     account: getInner("accountView"), 
     pib: getInner("pibView"), 
-    entryId: generateEntryId(),
+    address: getInner("addressView"),
+    entryId: editingJournalEntryId || generateEntryId(),
     photoUrl: "",
     installedPhotoUrl: getPhotoUrls("tech"),
     meterType: getVal("meterType"), 
@@ -2509,12 +2970,13 @@ function collectReplaceData() {
     worker: worker, 
     workType: selectedWork, 
     mode: "replace", 
-    entryId: generateEntryId(),
+    address: getInner("replaceAddressView2") || getInner("replaceAddressView1"),
+    entryId: editingJournalEntryId || generateEntryId(),
     photoUrl: getPhotoUrls("replaceRemoved"),
     installedPhotoUrl: getPhotoUrls("replaceInstalled"),
     replaceReason: selectedReplaceReason, 
-    account: getInner("replaceAccountView2"), 
-    pib: getInner("replacePibView2"), 
+    account: getInner("replaceAccountView2") || getInner("replaceAccountView1"), 
+    pib: getInner("replacePibView2") || getInner("replacePibView1"), 
 
     // Лічильники
     removedMeterType: remType, 
@@ -2554,7 +3016,8 @@ function collectControlData() {
     worker: worker, 
     workType: selectedWork, 
     mode: "control", 
-    entryId: generateEntryId(),
+    address: getInner("controlAddressView"),
+    entryId: editingJournalEntryId || generateEntryId(),
     photoUrl: "",
     installedPhotoUrl: getPhotoUrls("control"),
     account: getInner("controlAccountView"), 
@@ -2674,7 +3137,8 @@ function collectCloseData() {
   return { 
     worker: worker, 
     workType: selectedWork, 
-    entryId: generateEntryId(),
+    address: getInner("closeAddressView1"),
+    entryId: editingJournalEntryId || generateEntryId(),
     photoUrl: getPhotoUrls("close"),
     installedPhotoUrl: "",
     mode: "close", // Спеціальний режим для Code.gs
@@ -2923,6 +3387,12 @@ function updateOfflineCount() {
   if (countEl) countEl.textContent = list.length;
 }
 
+function markOfflineJournalEntriesOnline(items) {
+  const ids = new Set((items || []).map(e => e.entryId).filter(Boolean));
+  const journal = readJournal().map(e => ids.has(e.entryId) ? { ...e, status: "online" } : e);
+  writeJournal(journal);
+}
+
 // Автоматична синхронізація при старті або натисканні
 function syncOfflineData() {
   const rawData = localStorage.getItem("offlineData");
@@ -2941,6 +3411,7 @@ function syncOfflineData() {
   // ВИКОРИСТОВУЄМО ТВОЮ ФУНКЦІЮ sendRequest, А НЕ google.script.run
   sendRequest("saveDataBatch", { items: list }, function(res) {
     if (res.ok) {
+      markOfflineJournalEntriesOnline(list);
       localStorage.removeItem("offlineData");
       updateOfflineCount();
       alert("✅ Успішно відправлено: " + res.saved + " записів!");
