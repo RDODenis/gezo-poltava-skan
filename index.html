@@ -1036,7 +1036,7 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
    МАГІЧНИЙ МІСТ ДЛЯ ЗВ'ЯЗКУ З GOOGLE (POLYFILL)
 ========================================================= */
 // ⚠️⚠️⚠️ ОБОВ'ЯЗКОВО ВСТАВ СЮДИ СВОЄ ПОСИЛАННЯ /EXEC !!!
-const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbwuJwze56qxSa7zwhchkzLX_NrwnBqfrb6W021CjLXIbCw10PIjeOoZl2TI2xwk27GyEA/exec";
+const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbyxWJUcHia_AUHqD6IYyj-ah5n-_QdhUxxfb4p-tHzM41kR6SexG_O628wYxgcefd69/exec";
 
 function sendRequest(action, payload, callback) {
   const btn = (typeof window.event !== 'undefined' && window.event.target) ? window.event.target : null;
@@ -2283,7 +2283,80 @@ function formReadings(e, side) {
   return buildJournalReadings(d.readings);
 }
 
-function normalizeMeterForGEZOForm(value) { return value || ""; }
+  const GOOGLE_FORM_METER_TYPES = [
+  "GAMMA 100 G1Y.163","AD11A.1-5-1","EMH ED2500","GAMMA 100 G1B","GAMMA 300","GROSS DDS-UA","ISKRA ME162-D1A44-V12L11-M2KO","ITZ",
+  "Landis Gur L550","Landis ZCG110ATt","Landis310","MCS301-CE51B 30MIS-004 000","MTX 1A10.DF.2LO-CO4","MTX 1A10.DF.2LO-YO4",
+  "MTX 1A10.DF.2ZO-CD4","MTX 1A10.DF.2ZO-CO4","MTX 3A 10.DF.4Z1-C4","MTX 3A 10.DG.4Z3-CD4","MTX 3A 10.DH.4Z1-CD4",
+  "NIK 2100 AP2.0000.0.11","NIK 2100 АР2Т.1000.С.11","NIK 2100 АР2Т.1002.МС.11","NIK 2100 АР2Т.1002.С.11",
+  "NIK 2100 АР6Т.1002.МС.11","NIK 2100 АР6Т.2000.МС.11","NIK 2100 АР6Т.2002.МС.11","NIK 2100 АР6Т.2802.МС.11",
+  "NIK 2100 АР2Т.2802.МС.11","NIK 2100 АР6Т.2902.МС.11","NIK 2104 АР2Т.1000.М.11","NIK 2104 АР2Т.1000.С.11",
+  "NIK 2104 АР2Т.1002.МС.11","NIK 2104 АР2Т.1802.МС.11","NIK 2104 АР2ТВ.1802.М.11","NIK 2104 АР6Т.2602.МС.21",
+  "NIK 2300 AP6T.1000.C.11","NIK 2300 ARP3T.2900 МС 21","NIK 2300 AТТ.2900 МС 21","NIK 2300 АRTT.2902.МС.11",
+  "NIK 2300 АР3.2000.MC.11","NIK 2300 АР3T.2000.МС.11","NIK 2300 АР6Т.2002.МС.11","NIK 2300 АР6Т.2802.МС.11",
+  "NIK 2300 АР6Т.2902.МС.11","NIK 2301 АР3.0 0000.0.11","NIK 2303 ARP3T.1202.МС.11","NIK 2303 ARP3T.1802.МС.11",
+  "NIK 2303 ARP6T.1002.МС.11","NIK 2303 ARP6T.1800.МС.11","NIK 2303 ARТ Т.1800.МС.11","NIK 2303 AТ Т.1800.МС.21",
+  "NIK 2303 АRР3Т.1802.МС.11","NIK 2303 АRР3Т.1802.МС.21","NIK 2303 АRР6Т.1802.МС.11","NIK 2303 АР3Т.1000.МС.11",
+  "NIK 2303 АР3Т.1002.МС.11","NIK 2303 АР3Т.1802.МС.11","NIK 2303 АР3Т.2000.МС.11","NIK 2303 АР6Т.1000.МС.11",
+  "NIK 2303 АР6Т.1000.С.11","NIK 2303 АР6Т.1002.МС.11","NIK 2303 АР6Т.1802.МС.11","NIK 2303 АР6Т.1802МС.21",
+  "NIK 2303 АР6Т.2000.МС.11","NIK 2307 0.5s ARTT.1600.MC.21","NIK 2307 ARP3Т.1602.М.21","NIK 2307 ARP3Т.1602.МC.21",
+  "NIK 2307 ARP3Т.1602.МС.21","NIK 2308 ARP3 T.1620.MC.21","NP-06 TD MME 1F 2S-U","NP-06 TD MME 1F 3S-U",
+  "АСЕ-3000","ЛЭО","ЛЭО-М1.4","МЕРИДІАН ЛТЕ-1.03","МЕРИДІАН ЛТЕ-1.03Т","МЕРИДІАН ЛТЕ-1.03ТУ","Меркурій 200",
+  "Меркурій 200.02","Меркурій 201","Меркурій 206","МЕРКУРІЙ 231 АТ-01","НІК 2102-01.Е2МСТ","НІК 2102-01.Е2Р1",
+  "НІК 2102-01.Е2СТ","НІК 2102-01.Е2МТ","НІК 2102-01.Е2МТ1","НІК 2102-01.Е2Т","НІК 2102-01.Е2ТР1","НІК 2102-02.М1",
+  "НІК 2102-02.М1В","НІК 2102-02.М2","НІК 2102-02.М2В","НІК 2301 АП1","НІК 2303 АП2","НІК 2301 АП2В","НІК 2301 АП3",
+  "НІК 2301 АП3В","НІК 2303 АП2Т","НІК 2303 АП3Т","НІК 2303L АП1Т","НІК 2303L АП6","НІК 2303L АП6Т","СА4-195",
+  "СА4-И672п","СО-193","СО-197","СО-197М","СО-2","СО-2М","СО-5У","СОЕА09М","СО-И446","СО-И446М","СО-И449",
+  "СО-И449М1","СО-И449М1-1","СО-И449М1-2","СО-И449Т","СО-И6101","СОЭ-1.02/2","СОЭ-1.02/2КРТ","СОЭ-1.02/2КТ",
+  "СОЭ-1.02/2Т","СОЭ-1.02/5КРТД","СО-ЭА10Д","СО-ЭЭ6705","СО-ЭЭ6706","СТ-ЭА05","СТ-ЭА08М","ЦЭ6807Бк",
+  "ЭНЕРГОМЕРА СЕ 102М"
+];
+
+function canonicalizeMeterType(s) {
+  if (!s) return '';
+  // Ігноруємо пробіли, крапки й дефіси — всі три зустрічаються як роздільники непослідовно
+  let str = s.toUpperCase().replace(/[\s.\-]+/g, '');
+  const map = { 'А':'A','В':'B','Е':'E','К':'K','М':'M','Н':'H','О':'O','Р':'P','С':'C','Т':'T','Х':'X','У':'Y','І':'I' };
+  return str.split('').map(ch => map[ch] || ch).join('');
+}
+
+const METER_TYPE_ALIASES = {
+  'ЛЕО': 'ЛЭО',
+  'ЛЕО-М1.4': 'ЛЭО-М1.4',
+  'НІК 2102 01.Е2ТР1': 'НІК 2102-01.Е2ТР1',
+  'СО-ЭА09М2': 'СОЕА09М',
+  'GAMA 100 G1Y.163': 'GAMMA 100 G1Y.163'
+};
+
+function normalizeMeterTypeForForm(rawType) {
+  if (!rawType) return '';
+  const targetCanon = canonicalizeMeterType(rawType);
+
+  // Правило 3: словник винятків — ПЕРШИЙ і остаточний пріоритет.
+  // Якщо знайшли тут — інші правила НЕ застосовуємо, повертаємо одразу.
+  for (const key in METER_TYPE_ALIASES) {
+    if (canonicalizeMeterType(key) === targetCanon) {
+      return METER_TYPE_ALIASES[key];
+    }
+  }
+
+  // Далі — пошук у списку форми через канонізацію (правила 1+2)
+  const exact = GOOGLE_FORM_METER_TYPES.find(t => canonicalizeMeterType(t) === targetCanon);
+  if (exact) return exact;
+
+  // Точного збігу нема — краще порожньо, ніж підставити щось хибне
+  return '';
+}
+
+
+function normalizeMeterForGEZOForm(value) {
+  if (!value) return "";
+  const targetCanon = canonicalizeMeterType(value);
+  for (const key in METER_TYPE_ALIASES) {
+    if (canonicalizeMeterType(key) === targetCanon) return METER_TYPE_ALIASES[key];
+  }
+  const exact = GOOGLE_FORM_METER_TYPES.find(t => canonicalizeMeterType(t) === targetCanon);
+  return exact || "";
+}
 
 function buildGoogleFormUrlGEZO(e) {
   const d = new Date(e.ts || Date.now());
@@ -2616,6 +2689,7 @@ function fillReplaceStep1(d){
 }
 
 function goToReplaceStep2(){
+  if (!validateReplaceFirstStep()) return;
   document.getElementById("meterReplaceStep1").classList.add("hidden"); document.getElementById("meterReplaceStep2").classList.remove("hidden");
   setInner("replaceWorkerTab2", getInner("replaceWorkerTab1")); setInner("replaceWorkerName2", getInner("replaceWorkerName1")); setInner("replaceAccountView2", getInner("replaceAccountView1")); setInner("replacePibView2", getInner("replacePibView1")); setInner("replaceAddressView2", getInner("replaceAddressView1"));
   setVal("replaceInstalledMeterType", ""); setVal("replaceInstalledMeterNumber", ""); setVal("replaceInstalledLichil", ""); setVal("replaceInstalledOptop", ""); setVal("replaceInstalledFasad1", ""); setVal("replaceInstalledFasad2", ""); setVal("replaceInstalledVkp", ""); setVal("replaceInstalledImp1", ""); setVal("replaceInstalledImp2", ""); setVal("replaceInstalledImp3", ""); setVal("replaceInstalledOther", ""); resizeTextarea(document.getElementById("replaceInstalledOther"));
@@ -2788,14 +2862,119 @@ function offlineMode() {
 /* =========================================================
 ЗБІР І ВІДПРАВКА ДАНИХ
 ========================================================= */
-function save(){ try{const data = collectTechData(); sendDataToServer(data, "saveHint", ["techCheckForm"]);}catch(e){alert("❌ Помилка збору даних:\n"+e.message);} }
-function saveControlCheck(){ try{const data = collectControlData(); sendDataToServer(data, "controlSaveHint", ["controlCheckForm"]);}catch(e){alert("❌ Помилка збору даних:\n"+e.message);} }
+
+/* =========================================================
+ОБОВ'ЯЗКОВІ ПОЛЯ ТА ПОПЕРЕДЖЕННЯ, як у PLC
+========================================================= */
+function requireField(id, label) {
+  const value = getVal(id);
+  if (!value) {
+    alert("❌ Обов'язково заповніть поле: " + label + "!");
+    const el = document.getElementById(id);
+    if (el) { el.focus(); el.scrollIntoView({ behavior: "smooth", block: "center" }); }
+    return false;
+  }
+  return true;
+}
+
+function requirePhoto(slot, label) {
+  const state = photoState[slot];
+  if (!state || state.urls.length === 0) {
+    alert("📷 Зробіть фото або виберіть файл: " + label + "!");
+    const el = document.getElementById("fileInput_" + slot);
+    if (el && el.parentElement) el.parentElement.scrollIntoView({ behavior: "smooth", block: "center" });
+    return false;
+  }
+  return true;
+}
+
+function confirmDuplicateMeters(items) {
+  const today = new Date().toDateString();
+  const currentId = editingJournalEntryId || "";
+  const journal = readJournal().filter(e => new Date(e.ts).toDateString() === today && e.entryId !== currentId);
+  for (const item of items) {
+    const number = String(item.value || "").trim();
+    if (!number) continue;
+    const found = journal.find(e => {
+      const removed = getJournalSideData(e, "removed").number;
+      const installed = getJournalSideData(e, "installed").number;
+      return removed === number || installed === number;
+    });
+    if (found) {
+      const time = new Date(found.ts).toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" });
+      if (!confirm(`⚠️ УВАГА! ${item.label} ${number} вже є в журналі сьогодні (О/р: ${found.account || "—"}, ${time}).\n\nПродовжити збереження?`)) return false;
+    }
+  }
+  return true;
+}
+
+function validateTechForm() {
+  if (!requireField("meterType", "тип встановленого лічильника")) return false;
+  if (!requireField("meterNumber", "номер встановленого лічильника")) return false;
+  if (!requireField("t0", "покази лічильника T")) return false;
+  if (!requireField("installedLichil", "встановлена пломба клемної кришки")) return false;
+  if (!requireField("installedOptop", "встановлена пломба оптопорту")) return false;
+  if (!requirePhoto("tech", "встановленого лічильника")) return false;
+  return confirmDuplicateMeters([{ label: "Встановлений лічильник", value: getVal("meterNumber") }]);
+}
+
+function validateReplaceFirstStep() {
+  if (!requireField("replaceRemovedT0", "покази знятого лічильника T")) return false;
+  return requirePhoto("replaceRemoved", "знятого лічильника");
+}
+
+function validateReplaceFinalStep() {
+  if (!requireField("replaceInstalledMeterType", "тип встановленого лічильника")) return false;
+  if (!requireField("replaceInstalledMeterNumber", "номер встановленого лічильника")) return false;
+  if (!requireField("replaceInstalledT0", "покази встановленого лічильника T")) return false;
+  if (!requireField("replaceInstalledLichil", "встановлена пломба клемної кришки")) return false;
+  if (!requireField("replaceInstalledOptop", "встановлена пломба оптопорту")) return false;
+  if (!requirePhoto("replaceInstalled", "встановленого лічильника")) return false;
+  if (!validateReplaceFirstStep()) return false;
+  return confirmDuplicateMeters([
+    { label: "Знятий лічильник", value: getVal("replaceRemovedMeterNumber") },
+    { label: "Встановлений лічильник", value: getVal("replaceInstalledMeterNumber") }
+  ]);
+}
+
+function validateControlForm() {
+  if (!requireField("controlMeterType", "тип встановленого лічильника")) return false;
+  if (!requireField("controlMeterNumber", "номер встановленого лічильника")) return false;
+  if (!requireField("controlT0", "покази лічильника T")) return false;
+  if (!requireField("controlInstalledLichil", "встановлена пломба клемної кришки")) return false;
+  if (!requireField("controlInstalledOptop", "встановлена пломба оптопорту")) return false;
+  if (!requirePhoto("control", "встановленого лічильника")) return false;
+  return confirmDuplicateMeters([{ label: "Встановлений лічильник", value: getVal("controlMeterNumber") }]);
+}
+
+function validateCloseForm() {
+  if (!requireField("closeMeterType", "тип знятого лічильника")) return false;
+  if (!requireField("closeMeterNumber", "номер знятого лічильника")) return false;
+  if (!requireField("closeT0", "покази знятого лічильника T")) return false;
+  if (!requirePhoto("close", "знятого лічильника")) return false;
+  return confirmDuplicateMeters([{ label: "Знятий лічильник", value: getVal("closeMeterNumber") }]);
+}
+
+function save(){
+  try {
+    if (!validateTechForm()) return;
+    const data = collectTechData();
+    sendDataToServer(data, "saveHint", ["techCheckForm"]);
+  } catch(e) { alert("❌ Помилка збору даних:\n"+e.message); }
+}
+function saveControlCheck(){
+  try {
+    if (!validateControlForm()) return;
+    const data = collectControlData();
+    sendDataToServer(data, "controlSaveHint", ["controlCheckForm"]);
+  } catch(e) { alert("❌ Помилка збору даних:\n"+e.message); }
+}
 
 function saveReplaceData(){ 
   try {
+    if (!validateReplaceFinalStep()) return;
     const instType = getVal("replaceInstalledMeterType");
     const instNum = getVal("replaceInstalledMeterNumber");
-    if (!instType || !instNum) { alert("❌ Введіть Тип та Заводський номер встановленого лічильника!"); return; }
 
     if (isFasadFlow) { saveFasadData(); return; } 
     const data = collectReplaceData(); 
@@ -3176,10 +3355,7 @@ function collectCloseData() {
 
 function saveCloseData() { 
   try {
-    const type = getVal("closeMeterType");
-    const num = getVal("closeMeterNumber");
-    if (!type || !num) { alert("❌ Введіть Тип та Заводський номер знятого лічильника!"); return; }
-
+    if (!validateCloseForm()) return;
     const data = collectCloseData(); 
     sendDataToServer(data, "closeSaveHint", ["closeStep1", "closeStep2"]);
   } catch(e) { alert("❌ Помилка збору даних:\n"+e.message); } 
@@ -3427,6 +3603,8 @@ window.addEventListener('online', syncOfflineData); // Автоматично п
 </script>
 </body>
 </html>
+  
+  
 
   
   
