@@ -1036,7 +1036,7 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
    МАГІЧНИЙ МІСТ ДЛЯ ЗВ'ЯЗКУ З GOOGLE (POLYFILL)
 ========================================================= */
 // ⚠️⚠️⚠️ ОБОВ'ЯЗКОВО ВСТАВ СЮДИ СВОЄ ПОСИЛАННЯ /EXEC !!!
-const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbzXUm9w-Y_150-Ohh4Oj0k_KN7LGQqKuE5R8RwMCzfFR2hGUBg3eXW5Bv4iJhCn4TOO5w/exec";
+const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbxjpZAMHTm3s4i1TyzYbh3hvOCIh8zxcc_tllAmdJb1e0RzVm0Qy3u2d6EBNUzP-IGDiA/exec";
 
 function sendRequest(action, payload, callback) {
   const btn = (typeof window.event !== 'undefined' && window.event.target) ? window.event.target : null;
@@ -1770,6 +1770,9 @@ const photoState = {
   close:            { urls: [], max: 3, target: "removed"   }
 };
 
+/* Фото рекомендоване, але не блокує збереження. Попередження показується один раз за спробу. */
+const photoReminderShown = { tech: false, replaceRemoved: false, replaceInstalled: false, control: false, close: false };
+
 function generateEntryId() {
   return Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
 }
@@ -1789,6 +1792,7 @@ function resetPhotoUI(slot) {
   if (hidden) hidden.value = '';
   if (thumbs) thumbs.innerHTML = '';
   if (status) status.textContent = '';
+  photoReminderShown[slot] = false;
 }
 
 function resetAllPhotoUI() {
@@ -2196,6 +2200,7 @@ function setJournalPhotoState(slot, value) {
   const state = photoState[slot];
   if (!state) return;
   state.urls = String(value || "").split("\n").filter(u => u.trim());
+  photoReminderShown[slot] = false;
   const hidden = document.getElementById("photoUrl_" + slot);
   if (hidden) hidden.value = state.urls.join("\n");
   renderPhotoThumbnails(slot);
@@ -2215,6 +2220,7 @@ function startEditEntry(e) {
   editingJournalEntryId = e.entryId;
   editingJournalTs = e.ts;
   selectedWork = e.workType || "";
+  selectedReplaceReason = e.replaceReason || "";
   isFasadFlow = e.mode === "fasad_replace";
   hideAllForms();
   document.getElementById("searchBlock").style.display = "none";
@@ -2325,6 +2331,7 @@ const METER_TYPE_ALIASES = {
   'НІК 2102 01.Е2ТР1': 'НІК 2102-01.Е2ТР1',
   'СО-ЭА09М2': 'СОЕА09М',
   'GAMA 100 G1Y.163': 'GAMMA 100 G1Y.163'
+  'НІК 2100 АР6Т.2902.МС.11': 'NIK 2100 АР6Т.2902.МС.11'
 };
 
 function normalizeMeterTypeForForm(rawType) {
@@ -2877,15 +2884,14 @@ function requireField(id, label) {
   return true;
 }
 
-function requirePhoto(slot, label) {
+function recommendPhotoOnce(slot, label) {
   const state = photoState[slot];
-  if (!state || state.urls.length === 0) {
-    alert("📷 Зробіть фото або виберіть файл: " + label + "!");
-    const el = document.getElementById("fileInput_" + slot);
-    if (el && el.parentElement) el.parentElement.scrollIntoView({ behavior: "smooth", block: "center" });
-    return false;
-  }
-  return true;
+  if (!state || state.urls.length > 0 || photoReminderShown[slot]) return true;
+  photoReminderShown[slot] = true;
+  alert("📷 Рекомендовано зробити фото " + label + ". Якщо фото робити не потрібно, натисніть цю кнопку ще раз для продовження.");
+  const el = document.getElementById("fileInput_" + slot);
+  if (el && el.parentElement) el.parentElement.scrollIntoView({ behavior: "smooth", block: "center" });
+  return false;
 }
 
 function confirmDuplicateMeters(items) {
@@ -2913,14 +2919,13 @@ function validateTechForm() {
   if (!requireField("meterNumber", "номер встановленого лічильника")) return false;
   if (!requireField("t0", "покази лічильника T")) return false;
   if (!requireField("installedLichil", "встановлена пломба клемної кришки")) return false;
-  if (!requireField("installedOptop", "встановлена пломба оптопорту")) return false;
-  if (!requirePhoto("tech", "встановленого лічильника")) return false;
+  if (!recommendPhotoOnce("tech", "встановленого лічильника")) return false;
   return confirmDuplicateMeters([{ label: "Встановлений лічильник", value: getVal("meterNumber") }]);
 }
 
 function validateReplaceFirstStep() {
   if (!requireField("replaceRemovedT0", "покази знятого лічильника T")) return false;
-  return requirePhoto("replaceRemoved", "знятого лічильника");
+  return recommendPhotoOnce("replaceRemoved", "знятого лічильника");
 }
 
 function validateReplaceFinalStep() {
@@ -2928,8 +2933,11 @@ function validateReplaceFinalStep() {
   if (!requireField("replaceInstalledMeterNumber", "номер встановленого лічильника")) return false;
   if (!requireField("replaceInstalledT0", "покази встановленого лічильника T")) return false;
   if (!requireField("replaceInstalledLichil", "встановлена пломба клемної кришки")) return false;
-  if (!requireField("replaceInstalledOptop", "встановлена пломба оптопорту")) return false;
-  if (!requirePhoto("replaceInstalled", "встановленого лічильника")) return false;
+  const replacementReason = isFasadFlow
+    ? (document.querySelector('input[name="reason"]:checked')?.value || "")
+    : selectedReplaceReason;
+  if (replacementReason === "ІП (PLC)" && !requireField("replaceInstalledOptop", "встановлена пломба оптопорту для заміни по ІП (PLC)")) return false;
+  if (!recommendPhotoOnce("replaceInstalled", "встановленого лічильника")) return false;
   if (!validateReplaceFirstStep()) return false;
   return confirmDuplicateMeters([
     { label: "Знятий лічильник", value: getVal("replaceRemovedMeterNumber") },
@@ -2942,8 +2950,7 @@ function validateControlForm() {
   if (!requireField("controlMeterNumber", "номер встановленого лічильника")) return false;
   if (!requireField("controlT0", "покази лічильника T")) return false;
   if (!requireField("controlInstalledLichil", "встановлена пломба клемної кришки")) return false;
-  if (!requireField("controlInstalledOptop", "встановлена пломба оптопорту")) return false;
-  if (!requirePhoto("control", "встановленого лічильника")) return false;
+  if (!recommendPhotoOnce("control", "встановленого лічильника")) return false;
   return confirmDuplicateMeters([{ label: "Встановлений лічильник", value: getVal("controlMeterNumber") }]);
 }
 
@@ -2951,7 +2958,7 @@ function validateCloseForm() {
   if (!requireField("closeMeterType", "тип знятого лічильника")) return false;
   if (!requireField("closeMeterNumber", "номер знятого лічильника")) return false;
   if (!requireField("closeT0", "покази знятого лічильника T")) return false;
-  if (!requirePhoto("close", "знятого лічильника")) return false;
+  if (!recommendPhotoOnce("close", "знятого лічильника")) return false;
   return confirmDuplicateMeters([{ label: "Знятий лічильник", value: getVal("closeMeterNumber") }]);
 }
 
@@ -3603,6 +3610,8 @@ window.addEventListener('online', syncOfflineData); // Автоматично п
 </script>
 </body>
 </html>
+  
+  
   
   
 
