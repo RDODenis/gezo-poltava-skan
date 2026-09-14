@@ -1046,7 +1046,7 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
    МАГІЧНИЙ МІСТ ДЛЯ ЗВ'ЯЗКУ З GOOGLE (POLYFILL)
 ========================================================= */
 // ⚠️⚠️⚠️ ОБОВ'ЯЗКОВО ВСТАВ СЮДИ СВОЄ ПОСИЛАННЯ /EXEC !!!
-const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbxzq7G9lbaUSpRl26-rBoeStO7RFg_nVAI-DADuW0kLE7wFjZnIcl31Ti3kn6CkmdzS/exec";
+const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbyxWJUcHia_AUHqD6IYyj-ah5n-_QdhUxxfb4p-tHzM41kR6SexG_O628wYxgcefd69/exec";
 
 function sendRequest(action, payload, callback) {
   const btn = (typeof window.event !== 'undefined' && window.event.target) ? window.event.target : null;
@@ -2304,7 +2304,11 @@ function setFormStateGEZO(entryId, state) {
 
 function formReadings(e, side) {
   const d = getJournalSideData(e, side);
-  return buildJournalReadings(d.readings);
+  let readings = d.readings || [];
+  if (!readings.some(v => v !== undefined && v !== null && String(v).trim() !== "")) {
+    readings = side === "installed" ? [e.t0, e.t1, e.t2, e.t3] : [e.removedT0, e.removedT1, e.removedT2, e.removedT3];
+  }
+  return buildJournalReadings(readings);
 }
 
   const GOOGLE_FORM_METER_TYPES = [
@@ -2400,9 +2404,9 @@ function addGoogleFormMeterData(params, e) {
   const installedOther = getOtherParts(e.installedOther);
 
   Object.assign(params, {
-    "entry.155422969": normalizeMeterForGEZOForm(removed.type),
-    "entry.1262021573": removed.number,
-    "entry.1666715724": formReadings(e, "removed"),
+    "entry.1775413232": normalizeMeterForGEZOForm(removed.type),
+    "entry.46399052": removed.number,
+    "entry.550055348": formReadings(e, "removed"),
     "entry.980914247": e.removedLichil || "",
     "entry.1281985427": e.removedVkp || "",
     "entry.1571141896": e.removedFasad1 || "",
@@ -2413,8 +2417,8 @@ function addGoogleFormMeterData(params, e) {
     "entry.851707833": e.removedImp1 || "",
     "entry.1653188291": e.removedImp2 || "",
     "entry.174981808": e.removedImp3 || "",
-    "entry.1958360409": normalizeMeterForGEZOForm(installed.type),
-    "entry.591456354": installed.number,
+    "entry.532819551": normalizeMeterForGEZOForm(installed.type),
+    "entry.174440973": installed.number,
     "entry.686446183": formReadings(e, "installed"),
     "entry.1577377109": e.installedLichil || "",
     "entry.1292803469": e.installedVkp || "",
@@ -2485,11 +2489,22 @@ function addGoogleFormFacadeData(params, e) {
   }
 }
 
+function getGoogleFormWorkTypeGEZO(e) {
+  const workTypes = {
+    "Технічна перевірка": "Технічна перевірка",
+    "Фасадні роботи": "Фасадні роботи",
+    "Заміна лічильника": "Заміна лічильника",
+    "Контрольний огляд": "Контрольний огляд",
+    "Закриття о/р з демонтажем": "Закриття о/р з демонтажем"
+  };
+  return workTypes[e.workType] || e.workType || "";
+}
+
 function buildGoogleFormUrlGEZO(e) {
   const isFacade = e.mode === "fasad_replace" || e.workType === "Фасадні роботи";
   const params = { usp: "pp_url" };
   addGoogleFormDate(params, e.ts);
-  params["entry.1609399626"] = isFacade ? "Фасадні роботи" : "Заміна лічильника";
+  params["entry.1609399626"] = getGoogleFormWorkTypeGEZO(e);
 
   if (isFacade) {
     // Для фасадної гілки передаємо тільки її власні поля, матеріали залежать від фазності.
@@ -3749,5 +3764,7 @@ window.addEventListener('online', syncOfflineData); // Автоматично п
 </script>
 </body>
 </html>
+  
+  
   
   
