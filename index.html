@@ -552,6 +552,12 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
       </div>
       <div class="fieldLabel">Заводський номер</div><div><input id="replaceRemovedMeterNumber"></div>
     </div>
+    <div id="facadeNoMeterReplacementBox" class="hidden" style="margin:10px 0 0; padding:10px; background:#fff8e1; border:1px solid #ffcc80; border-radius:8px;">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:bold;color:#6d4c41;">
+        <input type="checkbox" id="facadeNoMeterReplacement" onchange="toggleFacadeNoMeterReplacement()" style="width:20px;height:20px;">
+        Без заміни лічильника
+      </label>
+    </div>
     <div class="sectionLine"></div>
 
     <div class="blockTitle">Зняті пломби</div>
@@ -1036,7 +1042,7 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
    МАГІЧНИЙ МІСТ ДЛЯ ЗВ'ЯЗКУ З GOOGLE (POLYFILL)
 ========================================================= */
 // ⚠️⚠️⚠️ ОБОВ'ЯЗКОВО ВСТАВ СЮДИ СВОЄ ПОСИЛАННЯ /EXEC !!!
-const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbyxWJUcHia_AUHqD6IYyj-ah5n-_QdhUxxfb4p-tHzM41kR6SexG_O628wYxgcefd69/exec";
+const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbxyGMQK63Qrnn6MVC9Jg8MVNDA2iWcqDWbrpylyqOidtBQTxa18pd9U7YBwUUQNc3owSQ/exec";
 
 function sendRequest(action, payload, callback) {
   const btn = (typeof window.event !== 'undefined' && window.event.target) ? window.event.target : null;
@@ -2265,6 +2271,9 @@ function startEditEntry(e) {
     setJournalPhotoState("replaceInstalled", e.installedPhotoUrl);
 
     if (e.mode === "fasad_replace") {
+      setFacadeNoMeterReplacementVisible(true);
+      const noReplacement = document.getElementById("facadeNoMeterReplacement");
+      if (noReplacement) noReplacement.checked = Boolean(e.facadeNoMeterReplacement);
       setRadioValue("phase", e.fasadPhase);
       setRadioValue("reason", e.fasadReason);
       setRadioValue("area", e.fasadArea);
@@ -2416,6 +2425,12 @@ function addGoogleFormMeterData(params, e) {
   });
 }
 
+const FACADE_DEMO_MARKS = ["AsXSn 2х16", "AsXSn 4х16", "АПВ 1х10", "АПВ 2х10", "СІП 2х16", "СІП 4х16", "ВВГ 2х4", "Інше"];
+function normalizeFacadeDemoMark(value) {
+  const canon = String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
+  return FACADE_DEMO_MARKS.find(item => item.toLowerCase() === canon) || "";
+}
+
 function addGoogleFormFacadeData(params, e) {
   const is1F = String(e.fasadPhase || "") === "1";
   Object.assign(params, {
@@ -2424,7 +2439,9 @@ function addGoogleFormFacadeData(params, e) {
     "entry.1882172690": e.fasadArea || "",
     "entry.337556482": e.fasadPhase || "",
     "entry.467890671": e.fasadType || "",
-    "entry.843146770": e.demoMark || "",
+    "entry.1583379400": e.worker || worker || "",
+    "entry.244962092": e.account || "",
+    "entry.843146770": normalizeFacadeDemoMark(e.demoMark),
     "entry.63937391": e.demoLength || "",
     "entry.1378093567": e.demoBy || ""
   });
@@ -2598,7 +2615,7 @@ function openSelectedWorkForm(){
     setInner("fasadWorkerTab", worker); setInner("fasadWorkerName", workerName);
     document.getElementById("fasadStep1").classList.remove("hidden"); window.scrollTo(0,0); return "fasad"; 
   }
-  if(selectedWork === "Заміна лічильника"){ document.getElementById("meterReplaceStep1").classList.remove("hidden"); window.scrollTo(0,0); return "replace"; }
+  if(selectedWork === "Заміна лічильника"){ setFacadeNoMeterReplacementVisible(false); document.getElementById("meterReplaceStep1").classList.remove("hidden"); window.scrollTo(0,0); return "replace"; }
   if(selectedWork === "Контрольний огляд"){ document.getElementById("controlCheckForm").classList.remove("hidden"); window.scrollTo(0,0); return "control"; }
   if(selectedWork === "Закриття о/р з демонтажем"){ document.getElementById("closeStep1").classList.remove("hidden"); window.scrollTo(0,0); return "close"; }
 
@@ -2894,7 +2911,26 @@ function proceedToNextStep() {
   }
 }
   
+function setFacadeNoMeterReplacementVisible(visible) {
+  const box = document.getElementById("facadeNoMeterReplacementBox");
+  const checkbox = document.getElementById("facadeNoMeterReplacement");
+  if (box) box.classList.toggle("hidden", !visible);
+  if (!visible && checkbox) checkbox.checked = false;
+  if (visible) toggleFacadeNoMeterReplacement();
+}
+
+function toggleFacadeNoMeterReplacement() {
+  const checkbox = document.getElementById("facadeNoMeterReplacement");
+  if (!checkbox || !checkbox.checked) return;
+  ["MeterType", "MeterNumber", "T0", "T1", "T2", "T3"].forEach(suffix => {
+    const source = document.getElementById("replaceRemoved" + suffix);
+    const target = document.getElementById("replaceInstalled" + suffix);
+    if (source && target) target.value = source.value;
+  });
+}
+
 function openReplaceFromFasad(d){
+  setFacadeNoMeterReplacementVisible(true);
   document.getElementById("meterReplaceStep1").classList.remove("hidden");
   setInner("replaceWorkerTab1", worker); setInner("replaceWorkerName1", workerName); setInner("replaceAccountView1", d.account || ""); setInner("replacePibView1", d.pib || ""); setInner("replaceAddressView1", (d.street || "") + " " + (d.house || "") + " " + (d.flat || "")); setVal("replaceRemovedMeterType", d.type || ""); setVal("replaceRemovedMeterNumber", d.meter || "");
   const plombs = parsePlombs(d.plomb || ""); setVal("replaceRemovedLichil", plombs.lichil); setVal("replaceRemovedOptop", plombs.optop); setVal("replaceRemovedFasad1", plombs.fasad[0]); setVal("replaceRemovedFasad2", plombs.fasad[1]); setVal("replaceRemovedVkp", plombs.vkp); setVal("replaceRemovedImp1", plombs.imp[0]); setVal("replaceRemovedImp2", plombs.imp[1]); setVal("replaceRemovedImp3", plombs.imp[2]); setVal("replaceRemovedOther", plombs.other); resizeTextarea(document.getElementById("replaceRemovedOther")); setVal("replaceRemovedT0", ""); setVal("replaceRemovedT1", ""); setVal("replaceRemovedT2", ""); setVal("replaceRemovedT3", "");
@@ -3217,6 +3253,7 @@ function collectTechData() {
 РОЗУМНИЙ ЗБІР ДАНИХ: ЗАМІНА ЛІЧИЛЬНИКА
 ========================================================= */
 function collectReplaceData() {
+  if (isFasadFlow && document.getElementById("facadeNoMeterReplacement")?.checked) toggleFacadeNoMeterReplacement();
   // 1. ПЕРЕВІРКА ЛІЧИЛЬНИКІВ (Якщо знятий = встановленому, то знятий обнуляємо)
   let remMeter = getVal("replaceRemovedMeterNumber");
   let instMeter = getVal("replaceInstalledMeterNumber");
@@ -3248,6 +3285,7 @@ function collectReplaceData() {
     photoUrl: getPhotoUrls("replaceRemoved"),
     installedPhotoUrl: getPhotoUrls("replaceInstalled"),
     replaceReason: selectedReplaceReason, 
+    facadeNoMeterReplacement: Boolean(isFasadFlow && document.getElementById("facadeNoMeterReplacement")?.checked),
     account: getInner("replaceAccountView2") || getInner("replaceAccountView1"), 
     pib: getInner("replacePibView2") || getInner("replacePibView1"), 
 
@@ -3532,6 +3570,7 @@ document.addEventListener("backbutton", function (e) {
   document.getElementById("reasonModal").classList.add("hidden");
 
   // 3. Відкриваємо крок 1 форми заміни
+  setFacadeNoMeterReplacementVisible(false);
   document.getElementById("meterReplaceStep1").classList.remove("hidden");
   
   // 4. Заповнюємо форму даними абонента, які ми "підхопили" під час пошуку
@@ -3697,6 +3736,10 @@ window.addEventListener('online', syncOfflineData); // Автоматично п
 </script>
 </body>
 </html>
+  
+  
+
+
   
   
   
