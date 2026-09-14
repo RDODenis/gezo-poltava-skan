@@ -572,14 +572,17 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
     <div style="margin-top: 15px;"><b>Інші зняті:</b><textarea id="replaceRemovedOther"></textarea></div>
     <div class="sectionLine"></div>
 
-    <div class="blockTitle">Покази знятого лічильника</div>
-    <div class="meterRow">
-      <div class="meterBox"><label>T</label><input id="replaceRemovedT0" inputmode="numeric"></div>
-      <div class="meterBox"><label>T1</label><input id="replaceRemovedT1" inputmode="numeric"></div>
-      <div class="meterBox"><label>T2</label><input id="replaceRemovedT2" inputmode="numeric"></div>
-      <div class="meterBox"><label>T3</label><input id="replaceRemovedT3" inputmode="numeric"></div>
+    <div id="facadeRemovedReadingsBlock">
+      <div class="blockTitle">Покази знятого лічильника</div>
+      <div class="meterRow">
+        <div class="meterBox"><label>T</label><input id="replaceRemovedT0" inputmode="numeric"></div>
+        <div class="meterBox"><label>T1</label><input id="replaceRemovedT1" inputmode="numeric"></div>
+        <div class="meterBox"><label>T2</label><input id="replaceRemovedT2" inputmode="numeric"></div>
+        <div class="meterBox"><label>T3</label><input id="replaceRemovedT3" inputmode="numeric"></div>
+      </div>
     </div>
 
+<div id="facadeRemovedPhotoBlock">
 <div class="blockTitle">Фотозвіт знятого лічильника</div>
 
 <div style="display:flex; gap:8px;">
@@ -600,6 +603,7 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
 <div id="uploadStatus_replaceRemoved" style="margin-top:6px; font-size: 14px;"></div>
 <input type="hidden" id="photoUrl_replaceRemoved">
 <div id="photoThumbnails_replaceRemoved" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;"></div>
+</div>
 
     <button class="btn-save actionBtn" onclick="goToReplaceStep2()">Далі ➡</button>
     <button class="btn-back actionBtn" onclick="backFromReplace1()">🔙 Назад</button>
@@ -1042,7 +1046,7 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
    МАГІЧНИЙ МІСТ ДЛЯ ЗВ'ЯЗКУ З GOOGLE (POLYFILL)
 ========================================================= */
 // ⚠️⚠️⚠️ ОБОВ'ЯЗКОВО ВСТАВ СЮДИ СВОЄ ПОСИЛАННЯ /EXEC !!!
-const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbxyGMQK63Qrnn6MVC9Jg8MVNDA2iWcqDWbrpylyqOidtBQTxa18pd9U7YBwUUQNc3owSQ/exec";
+const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbxzq7G9lbaUSpRl26-rBoeStO7RFg_nVAI-DADuW0kLE7wFjZnIcl31Ti3kn6CkmdzS/exec";
 
 function sendRequest(action, payload, callback) {
   const btn = (typeof window.event !== 'undefined' && window.event.target) ? window.event.target : null;
@@ -2797,6 +2801,7 @@ function fillReplaceStep1(d){
 }
 
 function goToReplaceStep2(){
+  if (isFasadFlow && document.getElementById("facadeNoMeterReplacement")?.checked) toggleFacadeNoMeterReplacement();
   if (!validateReplaceFirstStep()) return;
   document.getElementById("meterReplaceStep1").classList.add("hidden"); document.getElementById("meterReplaceStep2").classList.remove("hidden");
   setInner("replaceWorkerTab2", getInner("replaceWorkerTab1")); setInner("replaceWorkerName2", getInner("replaceWorkerName1")); setInner("replaceAccountView2", getInner("replaceAccountView1")); setInner("replacePibView2", getInner("replacePibView1")); setInner("replaceAddressView2", getInner("replaceAddressView1"));
@@ -2805,6 +2810,7 @@ function goToReplaceStep2(){
   setVal("replaceInstalledT1", selectedReplaceReason === "ІП (PLC)" ? "0000000" : "");
   setVal("replaceInstalledT2", selectedReplaceReason === "ІП (PLC)" ? "0000000" : "");
   setVal("replaceInstalledT3", "");
+  if (isFasadFlow && document.getElementById("facadeNoMeterReplacement")?.checked) toggleFacadeNoMeterReplacement();
 }
 
 function backFromReplace1(){ if(isFasadFlow){ document.getElementById("meterReplaceStep1").classList.add("hidden"); document.getElementById("fasadStep3").classList.remove("hidden"); } else { showSearchBlock(); } }
@@ -2916,12 +2922,17 @@ function setFacadeNoMeterReplacementVisible(visible) {
   const checkbox = document.getElementById("facadeNoMeterReplacement");
   if (box) box.classList.toggle("hidden", !visible);
   if (!visible && checkbox) checkbox.checked = false;
-  if (visible) toggleFacadeNoMeterReplacement();
+  toggleFacadeNoMeterReplacement();
 }
 
 function toggleFacadeNoMeterReplacement() {
   const checkbox = document.getElementById("facadeNoMeterReplacement");
-  if (!checkbox || !checkbox.checked) return;
+  const checked = Boolean(checkbox && checkbox.checked);
+  const readings = document.getElementById("facadeRemovedReadingsBlock");
+  const photos = document.getElementById("facadeRemovedPhotoBlock");
+  if (readings) readings.classList.toggle("hidden", checked);
+  if (photos) photos.classList.toggle("hidden", checked);
+  if (!checked) return;
   ["MeterType", "MeterNumber", "T0", "T1", "T2", "T3"].forEach(suffix => {
     const source = document.getElementById("replaceRemoved" + suffix);
     const target = document.getElementById("replaceInstalled" + suffix);
@@ -3047,6 +3058,8 @@ function validateTechForm() {
 }
 
 function validateReplaceFirstStep() {
+  const noReplacement = Boolean(isFasadFlow && document.getElementById("facadeNoMeterReplacement")?.checked);
+  if (noReplacement) return true;
   if (!requireField("replaceRemovedT0", "покази знятого лічильника T")) return false;
   return recommendPhotoOnce("replaceRemoved", "знятого лічильника");
 }
@@ -3736,17 +3749,5 @@ window.addEventListener('online', syncOfflineData); // Автоматично п
 </script>
 </body>
 </html>
-  
-  
-
-
-  
-  
-  
-  
-  
-  
-
-  
   
   
