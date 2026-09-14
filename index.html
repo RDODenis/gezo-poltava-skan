@@ -1036,7 +1036,7 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
    МАГІЧНИЙ МІСТ ДЛЯ ЗВ'ЯЗКУ З GOOGLE (POLYFILL)
 ========================================================= */
 // ⚠️⚠️⚠️ ОБОВ'ЯЗКОВО ВСТАВ СЮДИ СВОЄ ПОСИЛАННЯ /EXEC !!!
-const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbxjpZAMHTm3s4i1TyzYbh3hvOCIh8zxcc_tllAmdJb1e0RzVm0Qy3u2d6EBNUzP-IGDiA/exec";
+const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbyxWJUcHia_AUHqD6IYyj-ah5n-_QdhUxxfb4p-tHzM41kR6SexG_O628wYxgcefd69/exec";
 
 function sendRequest(action, payload, callback) {
   const btn = (typeof window.event !== 'undefined' && window.event.target) ? window.event.target : null;
@@ -2369,18 +2369,24 @@ function normalizeMeterForGEZOForm(value) {
   return exact || "";
 }
 
-function buildGoogleFormUrlGEZO(e) {
-  const d = new Date(e.ts || Date.now());
-  const dateStr = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+function addGoogleFormDate(params, timestamp) {
+  const d = new Date(timestamp || Date.now());
+  params["entry.1010154509_year"] = String(d.getFullYear());
+  params["entry.1010154509_month"] = String(d.getMonth() + 1).padStart(2, "0");
+  params["entry.1010154509_day"] = String(d.getDate()).padStart(2, "0");
+}
+
+function getOtherParts(value) {
+  return String(value || "").split(/\n|;|\|/).map(v => v.trim()).filter(Boolean);
+}
+
+function addGoogleFormMeterData(params, e) {
   const removed = getJournalSideData(e, "removed");
   const installed = getJournalSideData(e, "installed");
-  const params = {
-    usp: "pp_url",
-    "entry.1010154509": dateStr,
-    "entry.1609399626": e.workType || "",
-    "entry.203178877": e.replaceReason || e.fasadReason || "",
-    "entry.1583379400": e.worker || worker || "",
-    "entry.244962092": e.account || "",
+  const removedOther = getOtherParts(e.removedOther);
+  const installedOther = getOtherParts(e.installedOther);
+
+  Object.assign(params, {
     "entry.155422969": normalizeMeterForGEZOForm(removed.type),
     "entry.1262021573": removed.number,
     "entry.1666715724": formReadings(e, "removed"),
@@ -2389,7 +2395,8 @@ function buildGoogleFormUrlGEZO(e) {
     "entry.1571141896": e.removedFasad1 || "",
     "entry.950038743": e.removedFasad2 || "",
     "entry.1825187506": e.removedOptop || "",
-    "entry.1564992043": e.removedOther || "",
+    "entry.1564992043": removedOther[0] || "",
+    "entry.73553193": removedOther[1] || "",
     "entry.851707833": e.removedImp1 || "",
     "entry.1653188291": e.removedImp2 || "",
     "entry.174981808": e.removedImp3 || "",
@@ -2401,13 +2408,86 @@ function buildGoogleFormUrlGEZO(e) {
     "entry.1309070612": e.installedFasad1 || "",
     "entry.1176747559": e.installedFasad2 || "",
     "entry.67142835": e.installedOptop || "",
-    "entry.1726388226": e.installedOther || "",
+    "entry.1726388226": installedOther[0] || "",
+    "entry.843072666": installedOther[1] || "",
     "entry.245114888": e.installedImp1 || "",
     "entry.1581321253": e.installedImp2 || "",
     "entry.865785872": e.installedImp3 || ""
-  };
-  const query = Object.entries(params).filter(([, value]) => value !== undefined && value !== "")
-    .map(([key, value]) => encodeURIComponent(key) + "=" + encodeURIComponent(value)).join("&");
+  });
+}
+
+function addGoogleFormFacadeData(params, e) {
+  const is1F = String(e.fasadPhase || "") === "1";
+  Object.assign(params, {
+    "entry.1858321974": e.fasadOrder || "",
+    "entry.1850963161": e.fasadReason || "",
+    "entry.1882172690": e.fasadArea || "",
+    "entry.337556482": e.fasadPhase || "",
+    "entry.467890671": e.fasadType || "",
+    "entry.843146770": e.demoMark || "",
+    "entry.63937391": e.demoLength || "",
+    "entry.1378093567": e.demoBy || ""
+  });
+
+  if (is1F) {
+    Object.assign(params, {
+      "entry.173230495": e.f1_box || "",
+      "entry.782109268": e.f1_nom || "",
+      "entry.1869082070": e.f1_asxsn || "",
+      "entry.1475693519": e.f1_zn || "",
+      "entry.721278280": e.f1_zv || "",
+      "entry.845180365": e.f1_cable || "",
+      "entry.2126782559": e.f1_gofra || "",
+      "entry.434859207": e.f1_clip || "",
+      "entry.1610393243": e.f1_anker || "",
+      "entry.2007197195": e.f1_dubel || "",
+      "entry.1342157516": e.f1_boxk || "",
+      "entry.1518496091": e.f1_styajka || "",
+      "entry.1558044188": e.f1_other || ""
+    });
+  } else {
+    Object.assign(params, {
+      "entry.1637215642": e.f3_box || "",
+      "entry.234717896": e.f3_nom || "",
+      "entry.579205157": e.f3_asxsn || "",
+      "entry.1059292079": e.f3_zn || "",
+      "entry.225444171": e.f3_zv || "",
+      "entry.834496809": e.f3_cable || "",
+      "entry.1687324631": e.f3_gofra || "",
+      "entry.569229882": e.f3_clip || "",
+      "entry.1773825118": e.f3_anker || "",
+      "entry.1332734365": e.f3_dubel || "",
+      "entry.1584272830": e.f3_boxk || "",
+      "entry.845205475": e.f3_styajka || "",
+      "entry.293884523": e.f3_other || ""
+    });
+  }
+}
+
+function buildGoogleFormUrlGEZO(e) {
+  const isFacade = e.mode === "fasad_replace" || e.workType === "Фасадні роботи";
+  const params = { usp: "pp_url" };
+  addGoogleFormDate(params, e.ts);
+  params["entry.1609399626"] = isFacade ? "Фасадні роботи" : "Заміна лічильника";
+
+  if (isFacade) {
+    // Для фасадної гілки передаємо тільки її власні поля, матеріали залежать від фазності.
+    addGoogleFormFacadeData(params, e);
+  } else {
+    Object.assign(params, {
+      "entry.203178877": e.replaceReason || "",
+      "entry.1583379400": e.worker || worker || "",
+      "entry.244962092": e.account || ""
+    });
+  }
+
+  // Обидві гілки форми мають спільні сторінки лічильника та пломб.
+  addGoogleFormMeterData(params, e);
+
+  const query = Object.entries(params)
+    .filter(([, value]) => value !== undefined && value !== "")
+    .map(([key, value]) => encodeURIComponent(key) + "=" + encodeURIComponent(value))
+    .join("&");
   return GOOGLE_FORM_BASE_GEZO + "?" + query;
 }
 
