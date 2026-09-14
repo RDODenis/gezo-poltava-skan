@@ -209,6 +209,9 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
 .icon-form svg { fill:#9e9e9e; }
 .icon-form.pending svg { fill:#f9a825; }
 .icon-form.submitted svg { fill:#43a047; }
+.icon-form.loading { color:#f9a825; animation: journalFormSpin 1s linear infinite; }
+.icon-form.loading svg { fill:#f9a825; }
+@keyframes journalFormSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .badge-online { background: #e8f5e9; color: #2e7d32; font-size: 11px; padding: 2px 8px; border-radius: 20px; }
 .badge-offline { background: #fff3e0; color: #e65100; font-size: 11px; padding: 2px 8px; border-radius: 20px; }
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:10005; display:flex; align-items:center; justify-content:center; }
@@ -1046,7 +1049,7 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
    МАГІЧНИЙ МІСТ ДЛЯ ЗВ'ЯЗКУ З GOOGLE (POLYFILL)
 ========================================================= */
 // ⚠️⚠️⚠️ ОБОВ'ЯЗКОВО ВСТАВ СЮДИ СВОЄ ПОСИЛАННЯ /EXEC !!!
-const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbxzq7G9lbaUSpRl26-rBoeStO7RFg_nVAI-DADuW0kLE7wFjZnIcl31Ti3kn6CkmdzS/exec";
+const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbxrLADUGJOeKI3gGRf65hAB-REPrVCJCVTvuANobehKmWyJ0Q7e5PndzsEzbTyLmMQeag/exec";
 
 function sendRequest(action, payload, callback) {
   const btn = (typeof window.event !== 'undefined' && window.event.target) ? window.event.target : null;
@@ -2118,6 +2121,11 @@ function renderJournalForDate() {
     const removedReadings = buildJournalReadings(removed.readings);
     const installedReadings = buildJournalReadings(installed.readings);
     const formState = e.entryId ? getFormStateGEZO(e.entryId) : "idle";
+    const formIconClass = formState === "loading" ? "loading" : formState === "submitted" ? "submitted" : formState === "pending" ? "pending" : "";
+    const formIconSvg = formState === "loading"
+      ? "<span style='font-size:18px;'>⏳</span>"
+      : "<svg viewBox='0 0 24 24'><path d='M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z'/></svg>";
+    const formTitle = formState === "loading" ? "Завантаження Google Форми..." : formState === "submitted" ? "Форма вже відправлена" : "Відправити в Google Форму";
     const dateArg = "'" + String(selectedDate).replace(/\\/g, "\\\\").replace(/'/g, "\\'") + "'";
     return `<div class="journal-item">
       <div class="journal-item-top">
@@ -2128,9 +2136,7 @@ function renderJournalForDate() {
           <span class="journal-acc">О/р: ${escapeHtml(e.account || "—")}</span>
           <span class="journal-time">${timeStr} ${badge}</span>
         </div>
-        <button class="icon-btn icon-form ${formState === "submitted" ? "submitted" : formState === "pending" ? "pending" : ""}" onclick="handleFormIconClick(${index}, ${dateArg})" title="Google Форма">
-          <svg viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
-        </button>
+        <button class="icon-btn icon-form ${formIconClass}" onclick="handleFormIconClick(${index}, ${dateArg})" title="${formTitle}" aria-label="${formTitle}">${formIconSvg}</button>
         <button class="icon-btn icon-delete" onclick="openEntryActions(${index}, ${dateArg})" title="Дії із записом">
           <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
         </button>
@@ -2555,11 +2561,22 @@ async function handleFormIconClick(index, dateStr) {
   const e = getJournalDayEntries(dateStr)[index];
   if (!e || !e.entryId) return alert("⚠️ У запису немає ID, автозаповнення форми недоступне.");
   const state = getFormStateGEZO(e.entryId);
+  if (state === "loading") return;
   if (state === "idle") {
-    window.open(buildGoogleFormUrlGEZO(e), "_blank");
-    setFormStateGEZO(e.entryId, "pending");
+    setFormStateGEZO(e.entryId, "loading");
     renderJournalForDate();
-    setTimeout(() => alert("📋 Заповніть форму і натисніть «Надіслати». Потім поверніться сюди та натисніть цю іконку ще раз."), 300);
+    const popup = window.open(buildGoogleFormUrlGEZO(e), "_blank");
+    if (!popup) {
+      setFormStateGEZO(e.entryId, "idle");
+      renderJournalForDate();
+      return alert("⚠️ Браузер заблокував відкриття Google Форми. Дозвольте спливаючі вікна.");
+    }
+    try { popup.focus(); } catch (ignore) {}
+    setTimeout(() => {
+      setFormStateGEZO(e.entryId, "pending");
+      renderJournalForDate();
+      alert("📋 Заповніть форму і натисніть «Надіслати». Потім поверніться сюди та натисніть цю іконку ще раз.");
+    }, 1200);
   } else if (state === "pending") {
     if (confirm("Підтвердити, що Google Форму заповнено і надіслано?")) {
       setFormStateGEZO(e.entryId, "submitted");
@@ -2982,7 +2999,7 @@ function toggleFacadeNoMeterReplacement() {
 function openReplaceFromFasad(d){
   setFacadeNoMeterReplacementVisible(true);
   document.getElementById("meterReplaceStep1").classList.remove("hidden");
-  setInner("replaceWorkerTab1", worker); setInner("replaceWorkerName1", workerName); setInner("replaceAccountView1", d.account || ""); setInner("replacePibView1", d.pib || ""); setInner("replaceAddressView1", (d.street || "") + " " + (d.house || "") + " " + (d.flat || "")); setVal("replaceRemovedMeterType", d.type || ""); setVal("replaceRemovedMeterNumber", d.meter || "");
+  setInner("replaceWorkerTab1", worker); setInner("replaceWorkerName1", workerName); setInner("replaceAccountView1", d.account || ""); setInner("replacePibView1", d.pib || ""); setInner("replaceAddressView1", buildAddress(d)); setVal("replaceRemovedMeterType", d.type || ""); setVal("replaceRemovedMeterNumber", d.meter || "");
   const plombs = parsePlombs(d.plomb || ""); setVal("replaceRemovedLichil", plombs.lichil); setVal("replaceRemovedOptop", plombs.optop); setVal("replaceRemovedFasad1", plombs.fasad[0]); setVal("replaceRemovedFasad2", plombs.fasad[1]); setVal("replaceRemovedVkp", plombs.vkp); setVal("replaceRemovedImp1", plombs.imp[0]); setVal("replaceRemovedImp2", plombs.imp[1]); setVal("replaceRemovedImp3", plombs.imp[2]); setVal("replaceRemovedOther", plombs.other); resizeTextarea(document.getElementById("replaceRemovedOther")); setVal("replaceRemovedT0", ""); setVal("replaceRemovedT1", ""); setVal("replaceRemovedT2", ""); setVal("replaceRemovedT3", "");
 }
 
@@ -3788,6 +3805,8 @@ window.addEventListener('online', syncOfflineData); // Автоматично п
 </script>
 </body>
 </html>
+  
+  
   
   
   
