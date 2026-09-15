@@ -1049,7 +1049,7 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
    МАГІЧНИЙ МІСТ ДЛЯ ЗВ'ЯЗКУ З GOOGLE (POLYFILL)
 ========================================================= */
 // ⚠️⚠️⚠️ ОБОВ'ЯЗКОВО ВСТАВ СЮДИ СВОЄ ПОСИЛАННЯ /EXEC !!!
-const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbxEF5b3SMUQZXrs6UQnlFmQA3obvLNn0bdtsWMq9oM9nfwxwuF1sbctR8yRfvxQe4RAzQ/exec";
+const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbzUzsh8cgw_legynUABhRk2frExw-TozgLSBPK6oMO3rOiot2XBKL_Dpiiixuz1RwZxpw/exec";
 
 function sendRequest(action, payload, callback) {
   const btn = (typeof window.event !== 'undefined' && window.event.target) ? window.event.target : null;
@@ -2428,20 +2428,33 @@ function addGoogleFormMeterData(params, e) {
   const removedOther = getOtherParts(e.removedOther);
   const installedOther = getOtherParts(e.installedOther);
   const isCloseWork = e.mode === "close" || e.workType === "Закриття о/р з демонтажем";
+  const isSingleMeterWork = e.mode === "tech" || e.mode === "control" || e.workType === "Технічна перевірка" || e.workType === "Контрольний огляд";
+  const isFacadeWork = e.mode === "fasad_replace" || e.workType === "Фасадні роботи";
+  const isIPReplacement = e.replaceReason === "ІП (PLC)";
 
-  // У поточній Google Формі поля лічильників є спільними для гілок заміни,
-  // фасаду, техперевірки та контрольного огляду.
-  Object.assign(params, {
-    "entry.155422969": normalizeMeterForGEZOForm(removed.type),
-    "entry.1262021573": removed.number,
-    "entry.1666715724": formReadings(e, "removed"),
-    "entry.1958360409": normalizeMeterForGEZOForm(installed.type),
-    "entry.591456354": installed.number,
-    "entry.686446183": formReadings(e, "installed")
-  });
+  if (isFacadeWork || (e.mode === "replace" && !isIPReplacement)) {
+    // Звичайна заміна та фасадна гілка використовують окремі поля знятого/встановленого.
+    Object.assign(params, {
+      "entry.1775413232": normalizeMeterForGEZOForm(removed.type),
+      "entry.46399052": removed.number,
+      "entry.550055348": formReadings(e, "removed"),
+      "entry.532819551": normalizeMeterForGEZOForm(installed.type),
+      "entry.174440973": installed.number,
+      "entry.686446183": formReadings(e, "installed")
+    });
+  } else {
+    // ІП (PLC), техперевірка, контрольний огляд і демонтаж використовують стару гілку.
+    Object.assign(params, {
+      "entry.155422969": normalizeMeterForGEZOForm(removed.type),
+      "entry.1262021573": removed.number,
+      "entry.1666715724": formReadings(e, "removed"),
+      "entry.1958360409": normalizeMeterForGEZOForm(installed.type),
+      "entry.591456354": installed.number,
+      "entry.686446183": formReadings(e, "installed")
+    });
+  }
 
   if (isCloseWork) {
-    // У демонтажі додатково є сторінка "Демонтований ввід".
     Object.assign(params, {
       "entry.843146770": normalizeFacadeDemoMark(e.demoMark),
       "entry.63937391": e.demoLength || "",
@@ -2473,10 +2486,22 @@ function addGoogleFormMeterData(params, e) {
   });
 }
 
-const FACADE_DEMO_MARKS = ["AsXSn 2х16", "AsXSn 4х16", "АПВ 1х10", "АПВ 2х10", "СІП 2х16", "СІП 4х16", "ВВГ 2х4", "Інше"];
+const FACADE_DEMO_MARKS = [
+  "Не демонтувався",
+  "AsXSn 2x16", "AsXSn 4x16",
+  "АПВ 1x4", "АПВ 1x6", "АПВ 1x10", "АПВ 1x16",
+  "АВВГ 2x2,5", "АВВГ 2x4", "АВВГ 2x6", "АВВГ 2x10", "АВВГ 2x16",
+  "АВВГ 4x2,5", "АВВГ 4x4", "АВВГ 4x6", "АВВГ 4x10", "АВВГ 4x16",
+  "Інше"
+];
+
 function normalizeFacadeDemoMark(value) {
-  const canon = String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
-  return FACADE_DEMO_MARKS.find(item => item.toLowerCase() === canon) || "";
+  const canon = String(value || "")
+    .normalize("NFKC")
+    .replace(/[хx×]/gi, "x")
+    .replace(/\s+/g, "")
+    .toLowerCase();
+  return FACADE_DEMO_MARKS.find(item => item.normalize("NFKC").replace(/[хx×]/gi, "x").replace(/\s+/g, "").toLowerCase() === canon) || String(value || "").trim();
 }
 
 function addGoogleFormFacadeData(params, e) {
@@ -3815,5 +3840,7 @@ window.addEventListener('online', syncOfflineData); // Автоматично п
 </script>
 </body>
 </html>
+  
+  
   
   
