@@ -1049,7 +1049,7 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
    МАГІЧНИЙ МІСТ ДЛЯ ЗВ'ЯЗКУ З GOOGLE (POLYFILL)
 ========================================================= */
 // ⚠️⚠️⚠️ ОБОВ'ЯЗКОВО ВСТАВ СЮДИ СВОЄ ПОСИЛАННЯ /EXEC !!!
-const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbxrLADUGJOeKI3gGRf65hAB-REPrVCJCVTvuANobehKmWyJ0Q7e5PndzsEzbTyLmMQeag/exec";
+const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbxEF5b3SMUQZXrs6UQnlFmQA3obvLNn0bdtsWMq9oM9nfwxwuF1sbctR8yRfvxQe4RAzQ/exec";
 
 function sendRequest(action, payload, callback) {
   const btn = (typeof window.event !== 'undefined' && window.event.target) ? window.event.target : null;
@@ -1141,6 +1141,22 @@ function resizeTextarea(el){
 /* =========================================================
    АВТОВХІД ПРИ ЗАПУСКУ
 ========================================================= */
+function initMeterNumberInputs() {
+  const ids = ["meterNumber", "replaceRemovedMeterNumber", "replaceInstalledMeterNumber", "controlMeterNumber", "closeMeterNumber"];
+  ids.forEach(id => {
+    const input = document.getElementById(id);
+    if (!input || input.dataset.numericKeyboardReady === "1") return;
+    input.setAttribute("inputmode", "numeric");
+    input.setAttribute("pattern", "[0-9]*");
+    input.dataset.numericKeyboardReady = "1";
+    input.addEventListener("input", function() {
+      const cursor = this.selectionStart;
+      this.value = this.value.replace(/\D/g, "");
+      if (cursor !== null) this.setSelectionRange(Math.min(cursor, this.value.length), Math.min(cursor, this.value.length));
+    });
+  });
+}
+
 window.onload = function(){
   google.script.run.withSuccessHandler(function(list){ meterTypes = list || []; }).getMeterTypes();
   
@@ -1169,6 +1185,7 @@ window.onload = function(){
   
   updateOfflineCount();
   updateJournalCount();
+  initMeterNumberInputs();
 
   // --- БРОНЕБІЙНА КЛАВІАТУРА (Повертаємо на місце) ---
   const loginBox = document.getElementById("login");
@@ -2057,11 +2074,12 @@ function buildJournalPhotoLinks(value, label) {
 }
 
 function buildJournalPlombLine(e, side) {
-  const prefix = side === "removed" ? "removed" : "installed";
+  if (side === "removed") return "";
+  const prefix = "installed";
   const map = [
     ["Кр", e[prefix + "Lichil"]], ["ШО1", e[prefix + "Fasad1"]], ["ШО2", e[prefix + "Fasad2"]],
     ["ВКП", e[prefix + "Vkp"]], ["Опт", e[prefix + "Optop"]], ["ІМП1", e[prefix + "Imp1"]],
-    ["ІМП2", e[prefix + "Imp2"]], ["ІМП3", e[prefix + "Imp3"]]
+    ["ІМП2", e[prefix + "Imp2"]], ["ІМП3", e[prefix + "Imp3"]], ["Інші", e[prefix + "Other"]]
   ];
   const parts = map.filter(([, value]) => value).map(([name, value]) => `${name}: ${escapeHtml(value)}`);
   return parts.length ? "🔒 " + parts.join(" · ") : "";
@@ -3805,11 +3823,3 @@ window.addEventListener('online', syncOfflineData); // Автоматично п
 </script>
 </body>
 </html>
-  
-  
-  
-  
-  
-  
-  
-  
