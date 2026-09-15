@@ -772,13 +772,23 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
       <div>
         <select id="closeDemoMark" style="font-size:18px;">
           <option value="">Вибрати</option>
-          <option value="AsXSn 2х16">AsXSn 2х16</option>
-          <option value="AsXSn 4х16">AsXSn 4х16</option>
-          <option value="АПВ 1х10">АПВ 1х10</option>
-          <option value="АПВ 2х10">АПВ 2х10</option>
-          <option value="СІП 2х16">СІП 2х16</option>
-          <option value="СІП 4х16">СІП 4х16</option>
-          <option value="ВВГ 2х4">ВВГ 2х4</option>
+          <option value="Не демонтувався">Не демонтувався</option>
+          <option value="AsXSn 2x16">AsXSn 2x16</option>
+          <option value="AsXSn 4x16">AsXSn 4x16</option>
+          <option value="АПВ 1x4">АПВ 1x4</option>
+          <option value="АПВ 1x6">АПВ 1x6</option>
+          <option value="АПВ 1x10">АПВ 1x10</option>
+          <option value="АПВ 1x16">АПВ 1x16</option>
+          <option value="АВВГ 2x2,5">АВВГ 2x2,5</option>
+          <option value="АВВГ 2x4">АВВГ 2x4</option>
+          <option value="АВВГ 2x6">АВВГ 2x6</option>
+          <option value="АВВГ 2x10">АВВГ 2x10</option>
+          <option value="АВВГ 2x16">АВВГ 2x16</option>
+          <option value="АВВГ 4x2,5">АВВГ 4x2,5</option>
+          <option value="АВВГ 4x4">АВВГ 4x4</option>
+          <option value="АВВГ 4x6">АВВГ 4x6</option>
+          <option value="АВВГ 4x10">АВВГ 4x10</option>
+          <option value="АВВГ 4x16">АВВГ 4x16</option>
           <option value="Інше">Інше</option>
         </select>
       </div>
@@ -958,13 +968,23 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
       <div>
         <select id="fasadDemoMark" style="font-size:18px;">
           <option value="">Вибрати</option>
-          <option value="AsXSn 2х16">AsXSn 2х16</option>
-          <option value="AsXSn 4х16">AsXSn 4х16</option>
-          <option value="АПВ 1х10">АПВ 1х10</option>
-          <option value="АПВ 2х10">АПВ 2х10</option>
-          <option value="СІП 2х16">СІП 2х16</option>
-          <option value="СІП 4х16">СІП 4х16</option>
-          <option value="ВВГ 2х4">ВВГ 2х4</option>
+          <option value="Не демонтувався">Не демонтувався</option>
+          <option value="AsXSn 2x16">AsXSn 2x16</option>
+          <option value="AsXSn 4x16">AsXSn 4x16</option>
+          <option value="АПВ 1x4">АПВ 1x4</option>
+          <option value="АПВ 1x6">АПВ 1x6</option>
+          <option value="АПВ 1x10">АПВ 1x10</option>
+          <option value="АПВ 1x16">АПВ 1x16</option>
+          <option value="АВВГ 2x2,5">АВВГ 2x2,5</option>
+          <option value="АВВГ 2x4">АВВГ 2x4</option>
+          <option value="АВВГ 2x6">АВВГ 2x6</option>
+          <option value="АВВГ 2x10">АВВГ 2x10</option>
+          <option value="АВВГ 2x16">АВВГ 2x16</option>
+          <option value="АВВГ 4x2,5">АВВГ 4x2,5</option>
+          <option value="АВВГ 4x4">АВВГ 4x4</option>
+          <option value="АВВГ 4x6">АВВГ 4x6</option>
+          <option value="АВВГ 4x10">АВВГ 4x10</option>
+          <option value="АВВГ 4x16">АВВГ 4x16</option>
           <option value="Інше">Інше</option>
         </select>
       </div>
@@ -2486,22 +2506,9 @@ function addGoogleFormMeterData(params, e) {
   });
 }
 
-const FACADE_DEMO_MARKS = [
-  "Не демонтувався",
-  "AsXSn 2x16", "AsXSn 4x16",
-  "АПВ 1x4", "АПВ 1x6", "АПВ 1x10", "АПВ 1x16",
-  "АВВГ 2x2,5", "АВВГ 2x4", "АВВГ 2x6", "АВВГ 2x10", "АВВГ 2x16",
-  "АВВГ 4x2,5", "АВВГ 4x4", "АВВГ 4x6", "АВВГ 4x10", "АВВГ 4x16",
-  "Інше"
-];
-
+const FACADE_DEMO_MARKS = [];
 function normalizeFacadeDemoMark(value) {
-  const canon = String(value || "")
-    .normalize("NFKC")
-    .replace(/[хx×]/gi, "x")
-    .replace(/\s+/g, "")
-    .toLowerCase();
-  return FACADE_DEMO_MARKS.find(item => item.normalize("NFKC").replace(/[хx×]/gi, "x").replace(/\s+/g, "").toLowerCase() === canon) || String(value || "").trim();
+  return String(value || "").trim();
 }
 
 function addGoogleFormFacadeData(params, e) {
@@ -3225,7 +3232,7 @@ function saveFasadData() {
     let demoBy = (demoBox && demoBox.checked) ? "ОРБ" : "";
     let demoLen = getVal("fasadDemoLength");
     let demoMark = getVal("fasadDemoMark");
-    if (demoBy === "ОРБ" || demoLen === "0" || demoLen === "") { demoMark = ""; }
+    // Марка та переріз передаються без нормалізації та не очищуються автоматично.
 
     let remMeter = getVal("replaceRemovedMeterNumber"); let instMeter = getVal("replaceInstalledMeterNumber");
     let remType = getVal("replaceRemovedMeterType"); let instType = getVal("replaceInstalledMeterType");
@@ -3547,7 +3554,7 @@ function collectCloseData() {
   let demoBy = (demoBox && demoBox.checked) ? "ОРБ" : "";
   let demoLen = getVal("closeDemoLength");
   let demoMark = getVal("closeDemoMark");
-  if (demoBy === "ОРБ" || demoLen === "0" || demoLen === "") { demoMark = ""; }
+  // Марка та переріз передаються без нормалізації та не очищуються автоматично.
 
   return { 
     worker: worker, 
@@ -3840,7 +3847,5 @@ window.addEventListener('online', syncOfflineData); // Автоматично п
 </script>
 </body>
 </html>
-  
-  
   
   
