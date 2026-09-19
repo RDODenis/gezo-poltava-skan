@@ -3908,12 +3908,12 @@ function syncOfflineData() {
 
 // Перевірка при запуску програми
 window.addEventListener('online', syncOfflineData); // Автоматично при появі інету
-
+window.addEventListener("online", () => { if (typeof syncInventoryWithServerGEZO === "function") syncInventoryWithServerGEZO(true); });
 </script>
 </body>
 </html>
   
   
-window.addEventListener("online", () => { if (typeof syncInventoryWithServerGEZO === "function") syncInventoryWithServerGEZO(true); });
+
 
   
