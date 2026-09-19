@@ -1069,7 +1069,7 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
    МАГІЧНИЙ МІСТ ДЛЯ ЗВ'ЯЗКУ З GOOGLE (POLYFILL)
 ========================================================= */
 // ⚠️⚠️⚠️ ОБОВ'ЯЗКОВО ВСТАВ СЮДИ СВОЄ ПОСИЛАННЯ /EXEC !!!
-const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbxCq_hcD3sZPrU_Nl31srPytCQUsQlq9VQdYAW-GVpHvKjQnF-aypCKsYUJZCF4nQXcJA/exec";
+const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbzs5S4sr06sOSPXMZU0k1JYi-eZelsd7ok5D1f016IPufJAthDjlRZbFG1lKQIsLy5Uiw/exec";
 
 function sendRequest(action, payload, callback) {
   const btn = (typeof window.event !== 'undefined' && window.event.target) ? window.event.target : null;
@@ -1206,6 +1206,7 @@ window.onload = function(){
   updateOfflineCount();
   updateJournalCount();
   initMeterNumberInputs();
+  syncInventoryWithServerGEZO(true);
 
   // --- БРОНЕБІЙНА КЛАВІАТУРА (Повертаємо на місце) ---
   const loginBox = document.getElementById("login");
@@ -1269,6 +1270,7 @@ function afterLogin() {
   if (whoBlock) {
     whoBlock.innerHTML = "👷 Т/н: <b>" + worker + "</b> " + workerName;
   }
+  if (typeof syncInventoryWithServerGEZO === "function") syncInventoryWithServerGEZO(true);
 }
 
 function askLogout(){ document.getElementById("logoutModal").style.display="flex"; document.getElementById("logoutModal").classList.remove("hidden"); }
@@ -1636,6 +1638,52 @@ function setInventoryList(type, list) {
   localStorage.setItem(getInventoryStorageKey(type), JSON.stringify(list));
 }
 
+const INVENTORY_APP_GEZO = "GEZO";
+let inventorySyncRunningGEZO = false;
+
+function getPendingInventoryGEZO() {
+  try { return JSON.parse(localStorage.getItem("inventoryPendingGEZO") || "{\"plomb\":[],\"magnet\":[]}"); }
+  catch (e) { return { plomb: [], magnet: [] }; }
+}
+function setPendingInventoryGEZO(value) { localStorage.setItem("inventoryPendingGEZO", JSON.stringify(value)); }
+
+async function inventoryServerCallGEZO(action, payload) {
+  const formData = new URLSearchParams();
+  formData.append("payload", JSON.stringify({ action, ...payload }));
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4500);
+  try {
+    const response = await fetch(GOOGLE_API_URL, { method: "POST", body: formData, headers: { "Content-Type": "application/x-www-form-urlencoded" }, signal: controller.signal });
+    return JSON.parse(await response.text());
+  } finally { clearTimeout(timeout); }
+}
+
+async function syncInventoryWithServerGEZO(silent = true) {
+  if (inventorySyncRunningGEZO || !navigator.onLine || !worker) return;
+  inventorySyncRunningGEZO = true;
+  try {
+    const pending = getPendingInventoryGEZO();
+    const result = await inventoryServerCallGEZO("inventorySync", {
+      worker,
+      app: INVENTORY_APP_GEZO,
+      plombs: getInventoryList("plomb"),
+      magnets: getInventoryList("magnet"),
+      pendingPlombs: pending.plomb || [],
+      pendingMagnets: pending.magnet || []
+    });
+    if (result && result.success) {
+      setInventoryList("plomb", result.plomb || []);
+      setInventoryList("magnet", result.magnet || []);
+      setPendingInventoryGEZO({ plomb: [], magnet: [] });
+      updateInventoryUI();
+      if (result.conflicts && result.conflicts.length && !silent) alert("⚠️ Конфлікт синхронізації пломб: " + result.conflicts.map(x => x.number).join(", "));
+    }
+  } catch (e) {
+    // Локальний кеш залишається доступним при слабкому або відсутньому інтернеті.
+  } finally { inventorySyncRunningGEZO = false; }
+}
+
+
 function openInventoryModal(type) {
   currentInventoryType = type === "magnet" ? "magnet" : "plomb";
   document.getElementById("inventoryModalTitle").textContent = currentInventoryType === "magnet" ? "🧲 Мої магніти" : "🧰 Мої пломби";
@@ -1679,6 +1727,7 @@ function generateInventoryRange() {
   }
 
   setInventoryList(currentInventoryType, list);
+  syncInventoryWithServerGEZO(false);
   document.getElementById("inventoryStart").value = "";
   document.getElementById("inventoryEnd").value = "";
   updateInventoryUI();
@@ -1704,6 +1753,8 @@ function clearInventory() {
   const title = currentInventoryType === "magnet" ? "магнітів" : "пломб";
   if (!confirm(`Очистити список ${title}?`)) return;
   setInventoryList(currentInventoryType, []);
+  if (navigator.onLine && worker) inventoryServerCallGEZO("inventoryClear", { worker, type: currentInventoryType, app: INVENTORY_APP_GEZO }).then(() => syncInventoryWithServerGEZO(true)).catch(() => {});
+  syncInventoryWithServerGEZO(false);
   updateInventoryUI();
   refreshAllInventoryHints();
 }
@@ -1770,18 +1821,32 @@ function initInventoryFields() {
 }
 
 function removeUsedInventory(data) {
-  const seals = [data.installedLichil, data.installedFasad1, data.installedFasad2, data.installedVkp, data.installedOptop]
-    .map(cleanPlomb).filter(Boolean);
-  const magnets = [data.installedImp1, data.installedImp2, data.installedImp3]
-    .map(cleanPlomb).filter(Boolean);
-
-  if (seals.length) {
-    setInventoryList("plomb", getInventoryList("plomb").filter(value => !seals.includes(value)));
+  const seals = [data.installedLichil, data.installedFasad1, data.installedFasad2, data.installedVkp, data.installedOptop].map(cleanPlomb).filter(Boolean);
+  const magnets = [data.installedImp1, data.installedImp2, data.installedImp3].map(cleanPlomb).filter(Boolean);
+  setInventoryList("plomb", getInventoryList("plomb").filter(value => !seals.includes(value)));
+  setInventoryList("magnet", getInventoryList("magnet").filter(value => !magnets.includes(value)));
+  const pending = getPendingInventoryGEZO();
+  if (!navigator.onLine) {
+    pending.plomb = [...new Set([...(pending.plomb || []), ...seals])];
+    pending.magnet = [...new Set([...(pending.magnet || []), ...magnets])];
+    setPendingInventoryGEZO(pending);
+  } else {
+    inventoryServerCallGEZO("inventoryConsume", {
+      worker,
+      app: INVENTORY_APP_GEZO,
+      account: data.account || "",
+      jobId: data.entryId || "",
+      items: [...seals.map(number => ({ type: "plomb", number })), ...magnets.map(number => ({ type: "magnet", number }))]
+    }).then(result => {
+      if (result && result.success) {
+        setInventoryList("plomb", result.plomb || []);
+        setInventoryList("magnet", result.magnet || []);
+        updateInventoryUI();
+        if (result.conflicts && result.conflicts.length) alert("⚠️ Не вдалося синхронізувати: " + result.conflicts.map(x => x.number).join(", "));
+      }
+    }).catch(() => {});
   }
-  if (magnets.length) {
-    setInventoryList("magnet", getInventoryList("magnet").filter(value => !magnets.includes(value)));
-  }
-  refreshAllInventoryHints();
+  updateInventoryUI();
 }
 
 initInventoryFields();
@@ -3849,5 +3914,6 @@ window.addEventListener('online', syncOfflineData); // Автоматично п
 </html>
   
   
-  
+window.addEventListener("online", () => { if (typeof syncInventoryWithServerGEZO === "function") syncInventoryWithServerGEZO(true); });
+
   
