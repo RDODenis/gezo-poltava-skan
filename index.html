@@ -1069,7 +1069,7 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
    МАГІЧНИЙ МІСТ ДЛЯ ЗВ'ЯЗКУ З GOOGLE (POLYFILL)
 ========================================================= */
 // ⚠️⚠️⚠️ ОБОВ'ЯЗКОВО ВСТАВ СЮДИ СВОЄ ПОСИЛАННЯ /EXEC !!!
-const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbzNQJe3upTtqWdjuJt3Cb2uQR10Wd2JQui06agcBj2YdEgI1yoDvkcfUK1hKvLf0SDCoQ/exec";
+const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbzdMVGuUm3OEhHjEAY6B4qUfUdO8y_dU4zFEedniWEPI5aReVFuYsIZDxiruO8kawRxEA/exec";
 
 function sendRequest(action, payload, callback) {
   const btn = (typeof window.event !== 'undefined' && window.event.target) ? window.event.target : null;
@@ -1846,32 +1846,45 @@ function initInventoryFields() {
 }
 
 function removeUsedInventory(data) {
-  const seals = [data.installedLichil, data.installedFasad1, data.installedFasad2, data.installedVkp, data.installedOptop].map(cleanPlomb).filter(Boolean);
-  const magnets = [data.installedImp1, data.installedImp2, data.installedImp3].map(cleanPlomb).filter(Boolean);
-  setInventoryList("plomb", getInventoryList("plomb").filter(value => !seals.includes(value)));
-  setInventoryList("magnet", getInventoryList("magnet").filter(value => !magnets.includes(value)));
+  const seals = [...new Set([data.installedLichil, data.installedFasad1, data.installedFasad2, data.installedVkp, data.installedOptop].map(cleanPlomb).filter(Boolean))];
+  const magnets = [...new Set([data.installedImp1, data.installedImp2, data.installedImp3].map(cleanPlomb).filter(Boolean))];
+
+  // Запис у журнал не залежить від списку "Мої пломби".
+  // На сервер синхронізуємо тільки ті номери, які реально є у локальному інвентарі.
+  const availablePlombs = new Set(getInventoryList("plomb"));
+  const availableMagnets = new Set(getInventoryList("magnet"));
+  const syncSeals = seals.filter(number => availablePlombs.has(number));
+  const syncMagnets = magnets.filter(number => availableMagnets.has(number));
+
+  setInventoryList("plomb", getInventoryList("plomb").filter(value => !syncSeals.includes(value)));
+  setInventoryList("magnet", getInventoryList("magnet").filter(value => !syncMagnets.includes(value)));
+  updateInventoryUI();
+
+  if (!syncSeals.length && !syncMagnets.length) return;
+
   const pending = getPendingInventoryGEZO();
   if (!navigator.onLine) {
-    pending.plomb = [...new Set([...(pending.plomb || []), ...seals])];
-    pending.magnet = [...new Set([...(pending.magnet || []), ...magnets])];
+    pending.plomb = [...new Set([...(pending.plomb || []), ...syncSeals])];
+    pending.magnet = [...new Set([...(pending.magnet || []), ...syncMagnets])];
     setPendingInventoryGEZO(pending);
-  } else {
-    inventoryServerCallGEZO("inventoryConsume", {
-      worker,
-      app: INVENTORY_APP_GEZO,
-      account: data.account || "",
-      jobId: data.entryId || "",
-      items: [...seals.map(number => ({ type: "plomb", number })), ...magnets.map(number => ({ type: "magnet", number }))]
-    }).then(result => {
-      if (result && result.success) {
-        setInventoryList("plomb", result.plomb || []);
-        setInventoryList("magnet", result.magnet || []);
-        updateInventoryUI();
-        if (result.conflicts && result.conflicts.length) alert("⚠️ Не вдалося синхронізувати: " + result.conflicts.map(x => x.number).join(", "));
-      }
-    }).catch(() => {});
+    return;
   }
-  updateInventoryUI();
+
+  // Фонове оновлення. Воно не блокує і не змінює збереження журналу.
+  inventoryServerCallGEZO("inventoryConsume", {
+    worker,
+    app: INVENTORY_APP_GEZO,
+    account: data.account || "",
+    jobId: data.entryId || "",
+    items: [...syncSeals.map(number => ({ type: "plomb", number })), ...syncMagnets.map(number => ({ type: "magnet", number }))]
+  }).then(result => {
+    if (result && result.success) {
+      setInventoryList("plomb", result.plomb || []);
+      setInventoryList("magnet", result.magnet || []);
+      updateInventoryUI();
+    }
+    // Конфлікти інвентарю не показуємо користувачу і не впливаємо ними на журнал.
+  }).catch(error => console.warn("Фонове оновлення інвентарю ГЕЗО:", error));
 }
 
 initInventoryFields();
@@ -3930,6 +3943,7 @@ function syncOfflineData() {
     }
   });
 }
+
 window.addEventListener("online", () => { if (typeof syncInventoryWithServerGEZO === "function") syncInventoryWithServerGEZO(true); });
 // Перевірка при запуску програми
 window.addEventListener('online', syncOfflineData); // Автоматично при появі інету
@@ -3939,5 +3953,3 @@ window.addEventListener('online', syncOfflineData); // Автоматично п
 </html>
   
   
-
-
