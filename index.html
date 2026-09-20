@@ -1069,7 +1069,7 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
    МАГІЧНИЙ МІСТ ДЛЯ ЗВ'ЯЗКУ З GOOGLE (POLYFILL)
 ========================================================= */
 // ⚠️⚠️⚠️ ОБОВ'ЯЗКОВО ВСТАВ СЮДИ СВОЄ ПОСИЛАННЯ /EXEC !!!
-const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbxJxFYKms2uAf3ZX348DsCC00WlHUelEpSP6ktLiQSmEQMDrA94R0h_d5VsIa4YuKfp8A/exec";
+const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbwKZGAn1eQ2ac_cjKpHRc02CATdRMyygKhczrZ123T4Dll6fMCrby9UIJMYSDFbpyp0oA/exec";
 
 function sendRequest(action, payload, callback) {
   const btn = (typeof window.event !== 'undefined' && window.event.target) ? window.event.target : null;
@@ -1642,11 +1642,10 @@ const INVENTORY_APP_GEZO = "GEZO";
 let inventorySyncRunningGEZO = false;
 let inventoryClearRunningGEZO = false;
 
-function getPendingInventoryGEZO() {
-  try { return JSON.parse(localStorage.getItem("inventoryPendingGEZO") || "{\"plomb\":[],\"magnet\":[]}"); }
-  catch (e) { return { plomb: [], magnet: [] }; }
-}
+function getPendingInventoryGEZO() { try { return JSON.parse(localStorage.getItem("inventoryPendingGEZO") || "{\"plomb\":[],\"magnet\":[]}"); } catch(e) { return {plomb:[],magnet:[]}; } }
 function setPendingInventoryGEZO(value) { localStorage.setItem("inventoryPendingGEZO", JSON.stringify(value)); }
+function getPendingInventoryAddGEZO() { try { return JSON.parse(localStorage.getItem("inventoryPendingAddGEZO") || "{\"plomb\":[],\"magnet\":[]}"); } catch(e) { return {plomb:[],magnet:[]}; } }
+function setPendingInventoryAddGEZO(value) { localStorage.setItem("inventoryPendingAddGEZO", JSON.stringify(value)); }
 
 async function inventoryServerCallGEZO(action, payload) {
   const formData = new URLSearchParams();
@@ -1659,28 +1658,37 @@ async function inventoryServerCallGEZO(action, payload) {
   } finally { clearTimeout(timeout); }
 }
 
-async function syncInventoryWithServerGEZO(silent = true) {
+async function syncInventoryWithServerGEZO(silent = true, additions = null) {
+  // Нові номери додаються окремою чергою. Старий локальний список ніколи не відправляємо.
+  if (additions) {
+    const pendingAdd = getPendingInventoryAddGEZO();
+    pendingAdd.plomb = [...new Set([...(pendingAdd.plomb || []), ...(additions.plombs || [])])];
+    pendingAdd.magnet = [...new Set([...(pendingAdd.magnet || []), ...(additions.magnets || [])])];
+    setPendingInventoryAddGEZO(pendingAdd);
+  }
   if (inventorySyncRunningGEZO || inventoryClearRunningGEZO || !navigator.onLine || !worker) return;
   inventorySyncRunningGEZO = true;
   try {
     const pending = getPendingInventoryGEZO();
+    const pendingAdd = getPendingInventoryAddGEZO();
     const result = await inventoryServerCallGEZO("inventorySync", {
       worker,
       app: INVENTORY_APP_GEZO,
-      plombs: getInventoryList("plomb"),
-      magnets: getInventoryList("magnet"),
+      addPlombs: pendingAdd.plomb || [],
+      addMagnets: pendingAdd.magnet || [],
       pendingPlombs: pending.plomb || [],
       pendingMagnets: pending.magnet || []
     });
     if (result && result.success) {
       setInventoryList("plomb", result.plomb || []);
       setInventoryList("magnet", result.magnet || []);
-      setPendingInventoryGEZO({ plomb: [], magnet: [] });
+      setPendingInventoryGEZO({plomb: [], magnet: []});
+      setPendingInventoryAddGEZO({plomb: [], magnet: []});
       updateInventoryUI();
       if (result.conflicts && result.conflicts.length && !silent) alert("⚠️ Конфлікт синхронізації пломб: " + result.conflicts.map(x => x.number).join(", "));
     }
   } catch (e) {
-    // Локальний кеш залишається доступним при слабкому або відсутньому інтернеті.
+    // Локальний кеш та черга нових номерів залишаються доступними офлайн.
   } finally { inventorySyncRunningGEZO = false; }
 }
 
@@ -1719,16 +1727,18 @@ function generateInventoryRange() {
 
   const list = getInventoryList(currentInventoryType);
   let added = 0;
+  const newlyGenerated = [];
   for (let n = first; n <= last; n++) {
     const value = prefix + String(n).padStart(numberLength, "0");
     if (!list.includes(value)) {
       list.push(value);
+      newlyGenerated.push(value);
       added++;
     }
   }
 
   setInventoryList(currentInventoryType, list);
-  syncInventoryWithServerGEZO(false);
+  syncInventoryWithServerGEZO(false, currentInventoryType === "plomb" ? {plombs: newlyGenerated, magnets: []} : {plombs: [], magnets: newlyGenerated});
   document.getElementById("inventoryStart").value = "";
   document.getElementById("inventoryEnd").value = "";
   updateInventoryUI();
@@ -1755,6 +1765,10 @@ async function clearInventory() {
   if (!confirm(`Очистити список ${title}?`)) return;
   while (inventorySyncRunningGEZO) await new Promise(resolve => setTimeout(resolve, 100));
   inventoryClearRunningGEZO = true;
+  const pendingAdd = getPendingInventoryAddGEZO();
+  if (currentInventoryType === "plomb") pendingAdd.plomb = [];
+  else pendingAdd.magnet = [];
+  setPendingInventoryAddGEZO(pendingAdd);
   setInventoryList(currentInventoryType, []);
   updateInventoryUI();
   refreshAllInventoryHints();
@@ -3953,5 +3967,8 @@ window.addEventListener("online", () => { if (typeof syncInventoryWithServerGEZO
 </script>
 </body>
 </html>
+  
+
+
   
 
