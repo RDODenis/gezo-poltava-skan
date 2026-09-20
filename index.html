@@ -1069,7 +1069,7 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
    МАГІЧНИЙ МІСТ ДЛЯ ЗВ'ЯЗКУ З GOOGLE (POLYFILL)
 ========================================================= */
 // ⚠️⚠️⚠️ ОБОВ'ЯЗКОВО ВСТАВ СЮДИ СВОЄ ПОСИЛАННЯ /EXEC !!!
-const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbxawL8Ln2My4wE5R476eANXtyeOZrfqvzJT826BUAp4bcDov2_DeSOTqmAFb9rUccsjog/exec";
+const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbyxWJUcHia_AUHqD6IYyj-ah5n-_QdhUxxfb4p-tHzM41kR6SexG_O628wYxgcefd69/exec";
 
 function sendRequest(action, payload, callback) {
   const btn = (typeof window.event !== 'undefined' && window.event.target) ? window.event.target : null;
@@ -1659,7 +1659,7 @@ async function inventoryServerCallGEZO(action, payload) {
 }
 
 async function syncInventoryWithServerGEZO(silent = true) {
-  if (inventorySyncRunningGEZO || !navigator.onLine || !worker) return;
+  if (inventorySyncRunningGEZO || inventoryClearRunningGEZO || !navigator.onLine || !worker) return;
   inventorySyncRunningGEZO = true;
   try {
     const pending = getPendingInventoryGEZO();
@@ -1749,14 +1749,38 @@ function updateInventoryUI() {
   if (listEl) listEl.textContent = activeList.length ? activeList.join(", ") : "Список порожній.";
 }
 
-function clearInventory() {
+async function clearInventory() {
   const title = currentInventoryType === "magnet" ? "магнітів" : "пломб";
   if (!confirm(`Очистити список ${title}?`)) return;
+  while (inventorySyncRunningGEZO) await new Promise(resolve => setTimeout(resolve, 100));
+  inventoryClearRunningGEZO = true;
   setInventoryList(currentInventoryType, []);
-  if (navigator.onLine && worker) inventoryServerCallGEZO("inventoryClear", { worker, type: currentInventoryType, app: INVENTORY_APP_GEZO }).then(() => syncInventoryWithServerGEZO(true)).catch(() => {});
-  syncInventoryWithServerGEZO(false);
   updateInventoryUI();
   refreshAllInventoryHints();
+
+  // Не запускаємо inventorySync паралельно з очищенням.
+  // Інакше старі номери можуть знову завантажитися з сервера.
+  try {
+    if (navigator.onLine && worker) {
+      const result = await inventoryServerCallGEZO("inventoryClear", {
+        worker,
+        type: currentInventoryType,
+        app: INVENTORY_APP_GEZO
+      });
+      if (result && result.success) {
+          setInventoryList("plomb", result.plomb || []);
+          setInventoryList("magnet", result.magnet || []);
+          updateInventoryUI();
+          refreshAllInventoryHints();
+        } else if (result && result.message) {
+          alert("Не вдалося очистити список: " + result.message);
+        }
+      }
+    } catch (e) {
+      console.error("Помилка очищення пломб:", e);
+    } finally {
+      inventoryClearRunningGEZO = false;
+    }
 }
 
 function getUsedInventoryValues(type) {
@@ -3909,10 +3933,6 @@ window.addEventListener("online", () => { if (typeof syncInventoryWithServerGEZO
 // Перевірка при запуску програми
 window.addEventListener('online', syncOfflineData); // Автоматично при появі інету
 
-
 </script>
 </body>
 </html>
-  
-  
-
