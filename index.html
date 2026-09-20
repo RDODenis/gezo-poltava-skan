@@ -1069,7 +1069,7 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
    МАГІЧНИЙ МІСТ ДЛЯ ЗВ'ЯЗКУ З GOOGLE (POLYFILL)
 ========================================================= */
 // ⚠️⚠️⚠️ ОБОВ'ЯЗКОВО ВСТАВ СЮДИ СВОЄ ПОСИЛАННЯ /EXEC !!!
-const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbwPlRAY2R5yWopBh_nvDU8TbE6FmauHpppST9IuW1YTKzLuPeto_Cw_RqnMg30a-z8NYA/exec";
+const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbwPMaNIPJjvuiIupQx5iewWKP6GYfkZrqOOG2R_VuM2bEmWVJdJC5O8CooHMQ4ZGVG3ZA/exec";
 
 function sendRequest(action, payload, callback) {
   const btn = (typeof window.event !== 'undefined' && window.event.target) ? window.event.target : null;
@@ -3905,15 +3905,14 @@ function syncOfflineData() {
     }
   });
 }
-
+window.addEventListener("online", () => { if (typeof syncInventoryWithServerGEZO === "function") syncInventoryWithServerGEZO(true); });
 // Перевірка при запуску програми
 window.addEventListener('online', syncOfflineData); // Автоматично при появі інету
-window.addEventListener("online", () => { if (typeof syncInventoryWithServerGEZO === "function") syncInventoryWithServerGEZO(true); });
+
+
 </script>
 </body>
 </html>
   
   
 
-
-  
