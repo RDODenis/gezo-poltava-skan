@@ -1640,6 +1640,7 @@ function setInventoryList(type, list) {
 
 const INVENTORY_APP_GEZO = "GEZO";
 let inventorySyncRunningGEZO = false;
+let inventoryClearRunningGEZO = false;
 
 function getPendingInventoryGEZO() {
   try { return JSON.parse(localStorage.getItem("inventoryPendingGEZO") || "{\"plomb\":[],\"magnet\":[]}"); }
@@ -3936,3 +3937,7 @@ window.addEventListener('online', syncOfflineData); // Автоматично п
 </script>
 </body>
 </html>
+  
+  
+
+
