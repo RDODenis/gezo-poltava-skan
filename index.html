@@ -2490,6 +2490,8 @@ function canonicalizeMeterType(s) {
   if (!s) return '';
   // Ігноруємо пробіли, крапки й дефіси — всі три зустрічаються як роздільники непослідовно
   let str = s.toUpperCase().replace(/[\s.\-]+/g, '');
+  // У журналі префікс може бути кирилицею "НІК", а у Google Форми він "NIK".
+  str = str.replace(/^НІК/, 'NIK');
   const map = { 'А':'A','В':'B','Е':'E','К':'K','М':'M','Н':'H','О':'O','Р':'P','С':'C','Т':'T','Х':'X','У':'Y','І':'I' };
   return str.split('').map(ch => map[ch] || ch).join('');
 }
@@ -3946,12 +3948,10 @@ function syncOfflineData() {
 
 // Перевірка при запуску програми
 window.addEventListener('online', syncOfflineData); // Автоматично при появі інету
+  
 window.addEventListener("online", () => { if (typeof syncInventoryWithServerGEZO === "function") syncInventoryWithServerGEZO(true); });
 </script>
 </body>
 </html>
   
-  
-
-
 
