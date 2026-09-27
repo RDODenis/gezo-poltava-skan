@@ -2571,8 +2571,8 @@ function addGoogleFormMeterData(params, e) {
   const isFacadeWork = e.mode === "fasad_replace" || e.workType === "Фасадні роботи";
   const isIPReplacement = e.replaceReason === "ІП (PLC)";
 
-  if (isFacadeWork || (e.mode === "replace" && !isIPReplacement)) {
-    // Звичайна заміна та фасадна гілка використовують окремі поля знятого/встановленого.
+  if (isFacadeWork) {
+    // Окрема гілка форми використовується тільки для фасадних робіт.
     Object.assign(params, {
       "entry.1775413232": normalizeMeterForGEZOForm(removed.type),
       "entry.46399052": removed.number,
@@ -2582,7 +2582,9 @@ function addGoogleFormMeterData(params, e) {
       "entry.686446183": formReadings(e, "installed")
     });
   } else {
-    // ІП (PLC), техперевірка, контрольний огляд і демонтаж використовують стару гілку.
+    // Технічна перевірка, контрольний огляд, ІП (PLC),
+    // звичайна заміна з будь-якою підставою та демонтаж
+    // використовують основну гілку полів лічильників.
     Object.assign(params, {
       "entry.155422969": normalizeMeterForGEZOForm(removed.type),
       "entry.1262021573": removed.number,
@@ -3962,13 +3964,7 @@ function syncOfflineData() {
 
 // Перевірка при запуску програми
 window.addEventListener('online', syncOfflineData); // Автоматично при появі інету
-  
 window.addEventListener("online", () => { if (typeof syncInventoryWithServerGEZO === "function") syncInventoryWithServerGEZO(true); });
 </script>
 </body>
 </html>
-  
-
-
-  
-
