@@ -182,6 +182,12 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
 .inventoryCard h3 { margin-top: 0; }
 .inventoryCard input { margin-bottom: 10px; }
 .inventoryList { max-height: 150px; overflow-y: auto; background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #ddd; margin: 10px 0; text-align: left; font-size: 14px; color: #555; word-break: break-word; line-height: 1.55; }
+.inventory-editor-row { display:flex; align-items:center; gap:4px; padding:4px 0; border-bottom:1px solid #eee; }
+.inventory-editor-row span { flex:1; font-weight:600; }
+.inventory-editor-row button { min-height:28px; width:30px; padding:0; margin:0; font-size:16px; }
+.inventory-editor-row .delete-one { background:#ffebee; color:#c62828; }
+.drag-handle { width:28px; min-width:28px; text-align:center; font-size:21px; color:#607D8B; cursor:grab; touch-action:none; user-select:none; }
+.inventory-editor-row.dragging { opacity:.55; background:#e3f2fd; }
 .inventoryClear { background: #e53935; min-height: 40px; margin-top: 5px; font-size: 16px; }
 .inventoryClose { min-height: 40px; margin-top: 10px; }
 .inventoryCount { color: #1565c0; font-weight: bold; }
@@ -1033,7 +1039,7 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
     <div class="sectionLine"></div>
     <div style="font-weight:bold;">Доступні (<span id="inventoryModalCount" class="inventoryCount">0</span> шт):</div>
     <div class="inventoryList" id="inventoryList">Немає доданих пломб</div>
-
+    <button id="inventoryEditToggleGEZO" onclick="toggleInventoryEditorGEZO()" style="background:#607D8B; min-height:34px; margin:0 0 5px; font-size:14px;">✏️ Редагувати список</button>
     <button class="inventoryClear" onclick="clearInventory()">🗑 Очистити всі</button>
     <button class="btn-back inventoryClose" onclick="closeInventoryModal()">✖ Закрити</button>
   </div>
@@ -1069,7 +1075,7 @@ textarea { resize: none; overflow: hidden; font-size: 14px; }
    МАГІЧНИЙ МІСТ ДЛЯ ЗВ'ЯЗКУ З GOOGLE (POLYFILL)
 ========================================================= */
 // ⚠️⚠️⚠️ ОБОВ'ЯЗКОВО ВСТАВ СЮДИ СВОЄ ПОСИЛАННЯ /EXEC !!!
-const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbymlTqwT0ja234vcTKNpdrVBTQvkqnJK0vd7rmuPlwCb4FTAh87ehhm3X6pS59XxGhN7Q/exec";
+const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbz5T-GlAH1PjHb0bRpTbGXk2QoW9aUANrR2WkLnxNcwTVDyjOT93RpyyhRPDCXQMu4ngw/exec";
 
 function sendRequest(action, payload, callback) {
   const btn = (typeof window.event !== 'undefined' && window.event.target) ? window.event.target : null;
@@ -1644,6 +1650,10 @@ let inventoryClearRunningGEZO = false;
 
 function getPendingInventoryGEZO() { try { return JSON.parse(localStorage.getItem("inventoryPendingGEZO") || "{\"plomb\":[],\"magnet\":[]}"); } catch(e) { return {plomb:[],magnet:[]}; } }
 function setPendingInventoryGEZO(value) { localStorage.setItem("inventoryPendingGEZO", JSON.stringify(value)); }
+function getPendingInventoryDeleteGEZO() { try { return JSON.parse(localStorage.getItem("inventoryPendingDeleteGEZO") || "{\"plomb\":[],\"magnet\":[]}"); } catch(e) { return {plomb:[],magnet:[]}; } }
+function setPendingInventoryDeleteGEZO(value) { localStorage.setItem("inventoryPendingDeleteGEZO", JSON.stringify(value)); }
+function getPendingInventoryOrderGEZO() { try { return JSON.parse(localStorage.getItem("inventoryPendingOrderGEZO") || "{\"plomb\":[],\"magnet\":[]}"); } catch(e) { return {plomb:[],magnet:[]}; } }
+function setPendingInventoryOrderGEZO(value) { localStorage.setItem("inventoryPendingOrderGEZO", JSON.stringify(value)); }
 function getPendingInventoryAddGEZO() { try { return JSON.parse(localStorage.getItem("inventoryPendingAddGEZO") || "{\"plomb\":[],\"magnet\":[]}"); } catch(e) { return {plomb:[],magnet:[]}; } }
 function setPendingInventoryAddGEZO(value) { localStorage.setItem("inventoryPendingAddGEZO", JSON.stringify(value)); }
 
@@ -1671,19 +1681,27 @@ async function syncInventoryWithServerGEZO(silent = true, additions = null) {
   try {
     const pending = getPendingInventoryGEZO();
     const pendingAdd = getPendingInventoryAddGEZO();
+    const pendingDelete = getPendingInventoryDeleteGEZO();
+    const pendingOrder = getPendingInventoryOrderGEZO();
     const result = await inventoryServerCallGEZO("inventorySync", {
       worker,
       app: INVENTORY_APP_GEZO,
       addPlombs: pendingAdd.plomb || [],
       addMagnets: pendingAdd.magnet || [],
       pendingPlombs: pending.plomb || [],
-      pendingMagnets: pending.magnet || []
+      pendingMagnets: pending.magnet || [],
+      pendingDeletePlombs: pendingDelete.plomb || [],
+      pendingDeleteMagnets: pendingDelete.magnet || [],
+      pendingOrderPlombs: pendingOrder.plomb || [],
+      pendingOrderMagnets: pendingOrder.magnet || []
     });
     if (result && result.success) {
       setInventoryList("plomb", result.plomb || []);
       setInventoryList("magnet", result.magnet || []);
       setPendingInventoryGEZO({plomb: [], magnet: []});
       setPendingInventoryAddGEZO({plomb: [], magnet: []});
+      setPendingInventoryDeleteGEZO({plomb: [], magnet: []});
+      setPendingInventoryOrderGEZO({plomb: [], magnet: []});
       updateInventoryUI();
       if (result.conflicts && result.conflicts.length && !silent) alert("⚠️ Конфлікт синхронізації пломб: " + result.conflicts.map(x => x.number).join(", "));
     }
@@ -1700,6 +1718,7 @@ function openInventoryModal(type) {
   document.getElementById("inventoryEnd").value = "";
   document.getElementById("inventoryModal").classList.remove("hidden");
   updateInventoryUI();
+  syncInventoryWithServerGEZO(true).finally(updateInventoryUI);
 }
 
 function closeInventoryModal() {
@@ -1745,6 +1764,77 @@ function generateInventoryRange() {
   alert(added ? `✅ Додано: ${added}` : "ℹ️ Усі ці елементи вже є у списку.");
 }
 
+let inventoryEditorGEZO = false;
+let activeInventoryDragGEZO = null;
+function escapeInventoryTextGEZO(value) { return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
+function toggleInventoryEditorGEZO() {
+  inventoryEditorGEZO = !inventoryEditorGEZO;
+  const button = document.getElementById("inventoryEditToggleGEZO");
+  if (button) button.textContent = inventoryEditorGEZO ? "✅ Завершити редагування" : "✏️ Редагувати список";
+  updateInventoryUI();
+}
+function queueInventoryOrderGEZO(type, list) { const pending = getPendingInventoryOrderGEZO(); pending[type] = list.slice(); setPendingInventoryOrderGEZO(pending); }
+async function persistInventoryOrderGEZO(type, list) {
+  queueInventoryOrderGEZO(type, list);
+  if (!navigator.onLine || !worker) return;
+  try {
+    const result = await inventoryServerCallGEZO("inventoryReorder", { worker, type, order: list, app: INVENTORY_APP_GEZO });
+    if (result && result.success) {
+      setInventoryList("plomb", result.plomb || []); setInventoryList("magnet", result.magnet || []);
+      const pending = getPendingInventoryOrderGEZO(); pending[type] = []; setPendingInventoryOrderGEZO(pending); updateInventoryUI();
+    }
+  } catch(e) {}
+}
+function finishInventoryDragGEZO() {
+  if (!activeInventoryDragGEZO) return;
+  const { row, type, move, up } = activeInventoryDragGEZO;
+  document.removeEventListener("pointermove", move);
+  document.removeEventListener("pointerup", up);
+  row.classList.remove("dragging");
+  const list = [...document.querySelectorAll("#inventoryList .inventory-editor-row")].map(item => item.dataset.value);
+  setInventoryList(type, list);
+  activeInventoryDragGEZO = null;
+  updateInventoryUI();
+  persistInventoryOrderGEZO(type, list);
+}
+function startInventoryDragGEZO(event, row) {
+  if (!inventoryEditorGEZO) return;
+  event.preventDefault();
+  if (activeInventoryDragGEZO) finishInventoryDragGEZO();
+  const type = currentInventoryType;
+  row.classList.add("dragging");
+  const move = function(ev) {
+    ev.preventDefault();
+    const target = document.elementFromPoint(ev.clientX, ev.clientY)?.closest("#inventoryList .inventory-editor-row");
+    if (!target || target === row) return;
+    const rect = target.getBoundingClientRect();
+    if (ev.clientY < rect.top + rect.height / 2) target.parentNode.insertBefore(row, target);
+    else target.parentNode.insertBefore(row, target.nextSibling);
+  };
+  const up = function() { finishInventoryDragGEZO(); };
+  activeInventoryDragGEZO = { row, type, move, up };
+  document.addEventListener("pointermove", move, { passive:false });
+  document.addEventListener("pointerup", up, { once:true });
+}
+async function deleteInventoryItemsGEZO(numbers) {
+  const type = currentInventoryType;
+  const clean = [...new Set((numbers || []).map(cleanPlomb).filter(Boolean))];
+  if (!clean.length) return;
+  setInventoryList(type, getInventoryList(type).filter(value => !clean.includes(value)));
+  const pendingDelete = getPendingInventoryDeleteGEZO();
+  pendingDelete[type] = [...new Set([...(pendingDelete[type] || []), ...clean])]; setPendingInventoryDeleteGEZO(pendingDelete);
+  const pendingAdd = getPendingInventoryAddGEZO(); pendingAdd[type] = (pendingAdd[type] || []).filter(value => !clean.includes(value)); setPendingInventoryAddGEZO(pendingAdd);
+  updateInventoryUI(); refreshAllInventoryHints();
+  if (navigator.onLine && worker) {
+    try {
+      const result = await inventoryServerCallGEZO("inventoryDelete", { worker, type, numbers: clean, app: INVENTORY_APP_GEZO });
+      if (result && result.success) {
+        setInventoryList("plomb", result.plomb || []); setInventoryList("magnet", result.magnet || []);
+        pendingDelete[type] = (pendingDelete[type] || []).filter(value => !clean.includes(value)); setPendingInventoryDeleteGEZO(pendingDelete); updateInventoryUI(); refreshAllInventoryHints();
+      }
+    } catch(e) {}
+  }
+}
 function updateInventoryUI() {
   const plombCount = getInventoryList("plomb").length;
   const magnetCount = getInventoryList("magnet").length;
@@ -1752,14 +1842,14 @@ function updateInventoryUI() {
   const magnetCountEl = document.getElementById("myMagnetsCount");
   if (plombCountEl) plombCountEl.textContent = plombCount;
   if (magnetCountEl) magnetCountEl.textContent = magnetCount;
-
   const activeList = getInventoryList(currentInventoryType);
   const modalCount = document.getElementById("inventoryModalCount");
   const listEl = document.getElementById("inventoryList");
   if (modalCount) modalCount.textContent = activeList.length;
-  if (listEl) listEl.textContent = activeList.length ? activeList.join(", ") : "Список порожній.";
+  if (!activeList.length) { listEl.textContent = "Список порожній."; return; }
+  if (!inventoryEditorGEZO) { listEl.textContent = activeList.join(", "); return; }
+  listEl.innerHTML = activeList.map((value) => `<div class="inventory-editor-row" data-value="${escapeInventoryTextGEZO(value)}"><span class="drag-handle" onpointerdown="startInventoryDragGEZO(event,this.parentElement)" title="Перетягнути">⋮⋮</span><span>${escapeInventoryTextGEZO(value)}</span><button class="delete-one" onclick="deleteInventoryItemsGEZO(['${String(value).replace(/'/g, "\\'")}'])" title="Видалити">✕</button></div>`).join("");
 }
-
 async function clearInventory() {
   const title = currentInventoryType === "magnet" ? "магнітів" : "пломб";
   if (!confirm(`Очистити список ${title}?`)) return;
@@ -1769,6 +1859,12 @@ async function clearInventory() {
   if (currentInventoryType === "plomb") pendingAdd.plomb = [];
   else pendingAdd.magnet = [];
   setPendingInventoryAddGEZO(pendingAdd);
+  const pendingDelete = getPendingInventoryDeleteGEZO();
+  const pendingOrder = getPendingInventoryOrderGEZO();
+  pendingDelete[currentInventoryType] = [];
+  pendingOrder[currentInventoryType] = [];
+  setPendingInventoryDeleteGEZO(pendingDelete);
+  setPendingInventoryOrderGEZO(pendingOrder);
   setInventoryList(currentInventoryType, []);
   updateInventoryUI();
   refreshAllInventoryHints();
@@ -3968,3 +4064,7 @@ window.addEventListener("online", () => { if (typeof syncInventoryWithServerGEZO
 </script>
 </body>
 </html>
+  
+  
+
+
